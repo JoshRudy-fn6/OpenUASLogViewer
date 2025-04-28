@@ -8,13 +8,13 @@
  This is a Javascript based log viewer for Mavlink telemetry and dataflash logs.
  [Live demo here](http://plot.ardupilot.org).
 
-Project Goals:
--Extend functionality to include parsed DJI flight logs.
--Allow for manual input of GPS coordinate arrays for unsupported logs formats.
--Offline mapping using predownloaded tiles
--Visual planes showing objects detected by on-board obstacle avoidance sensors.
--Georeferencing images and videos during playback
--Report generation highlighting key events and flight details.
+### Project Goals:
+* Extend functionality to include parsed DJI flight logs.
+* Allow for manual input of GPS coordinate arrays for unsupported logs formats.
+* Offline mapping using predownloaded tiles
+* Visual planes showing objects detected by on-board obstacle avoidance sensors.
+* Georeferencing images and videos during playback
+* Report generation highlighting key events and flight details.
 
 ## Build Setup
 
