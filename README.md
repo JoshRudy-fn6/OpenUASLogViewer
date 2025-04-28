@@ -1,13 +1,27 @@
-# UAV Log Viewer
+# OpenUAS Log Viewer
 
 ![log seeking](preview.gif "Logo Title Text 1")
+
+## Forked project of UAV Log Viewer by ArduPilot
+[UAV Log Viewer](https://github.com/ArduPilot/UAVLogViewer)
 
  This is a Javascript based log viewer for Mavlink telemetry and dataflash logs.
  [Live demo here](http://plot.ardupilot.org).
 
+Project Goals:
+-Extend functionality to include parsed DJI flight logs.
+-Allow for manual input of GPS coordinate arrays for unsupported logs formats.
+-Offline mapping using predownloaded tiles
+-Visual planes showing objects detected by on-board obstacle avoidance sensors.
+-Georeferencing images and videos during playback
+-Report generation highlighting key events and flight details.
+
 ## Build Setup
 
 ``` bash
+# requires:
+# - node:14
+# - Visual Studio w/ C++ workload
 # install dependencies
 npm install
 
