@@ -3,10 +3,10 @@
     <div class="nav-side-menu col-lg-2">
 
         <h1 class="brand">
-            <a class="github" href="https://github.com/ardupilot/uavlogviewer">
+            <a class="github" href="https://github.com/JoshRudy-fn6/openuaslogviewer">
             <img :src="require('../assets/GitHub-Mark-64px.png').default"/>
             </a>
-            <a href="/"><b>UAV</b> Log Viewer<i class="fas fa-plane"></i></a><a class="github" href="https://ardupilot.org/copter/docs/common-uavlogviewer.html"><img :src="require('../assets/wiki.svg').default"/></a></h1>
+            <a href="/"><b>OpenUAS</b> Log Viewer<i class="fas fa-plane"></i></a><a class="github" href="https://ardupilot.org/copter/docs/common-uavlogviewer.html"><img :src="require('../assets/wiki.svg').default"/></a></h1>
         <!-- TABHOLDER -->
         <i class="fa fa-bars fa-2x toggle-btn" v-b-toggle.menucontent></i>
         <b-collapse class="menu-content collapse out" id="menucontent" visible>
