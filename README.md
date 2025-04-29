@@ -21,15 +21,20 @@
 ``` bash
 # requires:
 # - node:14
-# - Visual Studio w/ C++ workload
+# - Visual Studio w/ C++ workload, Windows SDK
+# - Python3, setuptools
 # install dependencies
 npm install
 
 # serve with hot reload at localhost:8080
 npm run dev
 
+#If you see the error "Error: Failed to load plugin import: Cannot find module 'eslint-plugin-import'"
+#run 'npm install react-scripts' and rerun the install and build
+
 # build for production with minification
 npm run build
+
 
 # run unit tests
 npm run unit
