@@ -96,16 +96,20 @@ export default {
                 this.state.processStatus = 'ERROR PARSING?'
             }
 
+            // Extract data lazily - only what's immediately needed
             if (this.state.flightModeChanges.length === 0) {
                 this.state.flightModeChanges = this.dataExtractor.extractFlightModes(this.state.messages)
+                // Defer deletion to avoid blocking
+                this.$nextTick(() => Vue.delete(this.state.messages, 'MODE'))
             }
-            Vue.delete(this.state.messages, 'MODE')
 
             if (this.state.events.length === 0) {
                 this.state.events = this.dataExtractor.extractEvents(this.state.messages)
+                this.$nextTick(() => {
+                    Vue.delete(this.state.messages, 'STAT')
+                    Vue.delete(this.state.messages, 'EV')
+                })
             }
-            Vue.delete(this.state.messages, 'STAT')
-            Vue.delete(this.state.messages, 'EV')
 
             if (this.state.mission.length === 0) {
                 this.state.mission = this.dataExtractor.extractMission(this.state.messages)

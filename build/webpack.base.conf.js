@@ -62,7 +62,8 @@ module.exports = {
         test: /\.js$/,
         loader: 'babel-loader',
         include: [resolve('src'), resolve('test'), resolve('node_modules/webpack-dev-server/client'),
-        resolve('node_modules/mavlink_common_v1.0/parsers')]
+        resolve('node_modules/mavlink_common_v1.0/parsers')],
+        exclude: [resolve('src/libs/mavlink.js')]
       },
       {
         test: /\.(png|jpe?g|gif)(\?.*)?$/,

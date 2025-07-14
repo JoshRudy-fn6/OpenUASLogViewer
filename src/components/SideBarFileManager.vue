@@ -31,6 +31,7 @@
 import VProgress from './SideBarFileManagerProgressBar.vue'
 import Worker from '../tools/parsers/parser.worker.js'
 import { store } from './Globals'
+import { perfMonitor } from '../utils/performanceMonitor'
 
 import { MAVLink20Processor as MAVLink } from '../libs/mavlink'
 
@@ -137,6 +138,9 @@ export default {
             })
         },
         process: function (file) {
+            perfMonitor.logFileSize(file.name, file.size)
+            perfMonitor.start('file-processing')
+
             this.state.file = file.name
             this.state.processStatus = 'Pre-processing...'
             this.state.processPercentage = 100

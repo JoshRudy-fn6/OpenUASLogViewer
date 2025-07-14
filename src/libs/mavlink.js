@@ -20186,11 +20186,13 @@ MAVLink20Processor.prototype.preParse = function () {
 MAVLink20Processor.prototype.parseType = function (type) {
     let messages = []
     if (!Object.keys(mavlink20.nameMap).includes(type)) {
-        throw new Error('no message!! ' + type)
+        // Some message types like AHRS3, NAMED_VALUE_FLOAT are dataflash messages, not MAVLink
+        console.debug('MAVLink message type not found: ' + type + ' (may be a dataflash message)')
+        return []
     }
     if (this.bufmap[mavlink20.nameMap[type]] === undefined) {
-        console.log('could not find message: ' + type)
-        return
+        console.debug('could not find message: ' + type)
+        return []
     }
     for (let offsets of this.bufmap[mavlink20.nameMap[type]]) {
         let m = this.decode(this.buf.slice(offsets[0], offsets[1]))

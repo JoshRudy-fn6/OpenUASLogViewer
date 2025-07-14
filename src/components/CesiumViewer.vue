@@ -84,9 +84,15 @@ import {
     expandPolygon,
     isPointInPolygon
 } from './cesiumExtra/boundingPolygon.js'
+import { CESIUM_ION_ACCESS_TOKEN } from '../config/cesium.js'
 
-Ion.defaultAccessToken = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiI2MmM0MDgzZC00OGVkLTRjZ' +
-    'TItOWI2MS1jMGVhYTM2MmMzODYiLCJpZCI6MjczNywiaWF0IjoxNjYyMTI4MjkxfQ.fPqhawtYLhwyZirKCi8fEjPEIn1CjYqETvA0bYYhWRA'
+// Set Cesium Ion access token if provided
+if (CESIUM_ION_ACCESS_TOKEN) {
+    Ion.defaultAccessToken = CESIUM_ION_ACCESS_TOKEN
+} else {
+    console.warn('No Cesium Ion access token configured. Some premium features may not be available.')
+    console.info('To configure a token, edit src/config/cesium.js')
+}
 
 const colorCoderMode = new ColorCoderMode(store)
 const colorCoderRange = new ColorCoderRange(store)
@@ -156,6 +162,14 @@ export default {
                 this.trajectory = this.viewer.entities.add(new Entity())
                 this.trajectoryUpdateTimeout = null
                 this.viewer.scene.globe.enableLighting = true
+
+                // Add error handling for imagery providers
+                this.viewer.scene.imageryLayers.layerAdded.addEventListener((layer) => {
+                    layer.imageryProvider.errorEvent.addEventListener((error) => {
+                        console.warn('Imagery provider error (this is usually due to missing Cesium Ion token):', error)
+                    })
+                })
+
                 this.viewer.scene.postRender.addEventListener(this.onFrameUpdate)
                 this.viewer.scene.postRender.addEventListener(this.onFrameUpdate)
                 this.viewer.scene.morphComplete.addEventListener(
@@ -262,10 +276,25 @@ export default {
                         scene3DOnly: false,
                         selectionIndicator: false,
                         shadows: true,
-                        // eslint-disable-next-line
-                        baseLayer: new ImageryLayer.fromProviderAsync(
-                            IonImageryProvider.fromAssetId(3954)
-                        ),
+                        /* eslint-disable new-cap, max-len */
+                        // Use Ion imagery if token is available, otherwise use default
+                        baseLayer: CESIUM_ION_ACCESS_TOKEN
+                            ? new ImageryLayer.fromProviderAsync(
+                                IonImageryProvider.fromAssetId(3954).catch(error => {
+                                    console.warn('Failed to load Cesium Ion imagery, falling back to default:', error.message)
+                                    return new UrlTemplateImageryProvider({
+                                        url: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+                                        subdomains: ['a', 'b', 'c'],
+                                        credit: '© OpenStreetMap contributors'
+                                    })
+                                })
+                            )
+                            : new ImageryLayer(new UrlTemplateImageryProvider({
+                                url: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+                                subdomains: ['a', 'b', 'c'],
+                                credit: '© OpenStreetMap contributors'
+                            })),
+                        /* eslint-enable new-cap, max-len */
                         imageryProviderViewModels: imageryProviders,
                         orderIndependentTranslucency: false,
                         useBrowserRecommendedResolution: false
