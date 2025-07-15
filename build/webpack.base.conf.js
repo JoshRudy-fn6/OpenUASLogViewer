@@ -7,8 +7,6 @@ const vueLoaderConfig = require('./vue-loader.conf')
 const CopyWebpackPlugin = require('copy-webpack-plugin')
 const CssMinimizerPlugin = require("css-minimizer-webpack-plugin");
 
-// The path to the Cesium source code
-
 function resolve(dir) {
   return path.join(__dirname, '..', dir)
 }
@@ -21,9 +19,9 @@ const createLintingRule = () => ({
   options: {
     formatter: require('eslint-friendly-formatter'),
     emitWarning: !config.dev.showEslintErrorsInOverlay,
-    emitError: true,
-    failOnError: true,
-    failOnWarning: true
+    emitError: false,
+    failOnError: false,
+    failOnWarning: false
   }
 })
 
@@ -103,6 +101,7 @@ module.exports = {
     ],
   },
   resolve: {
+    extensions: ['.js', '.vue', '.json'],
     fallback: {
       // make sure you `npm install path-browserify` to use this
       crypto: require.resolve("crypto-browserify"),

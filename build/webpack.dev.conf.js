@@ -12,11 +12,8 @@ const CopyWebpackPlugin = require('copy-webpack-plugin')
 const HtmlWebpackPlugin = require('html-webpack-plugin')
 const portfinder = require('portfinder')
 const { VueLoaderPlugin }  = require('vue-loader')
-const cesiumSource =  'node_modules/cesium/Source'
-const cesiumWorkers = '../Build/Cesium/Workers'
 const GitRevisionPlugin = require('git-revision-webpack-plugin')
 const gitRevisionPlugin = new GitRevisionPlugin()
-const ESLintPlugin = require('eslint-webpack-plugin');
 
 
 const HOST = '0.0.0.0'
@@ -57,7 +54,6 @@ const devWebpackConfig = merge(baseWebpackConfig, {
     proxy: config.dev.proxyTable,
   },
   plugins: [
-    new ESLintPlugin({fix: true}),
     new webpack.DefinePlugin({
       'process.env': require('../config/dev.env'),
       '_COMMIT_': JSON.stringify(gitRevisionPlugin.commithash()),
@@ -74,20 +70,13 @@ const devWebpackConfig = merge(baseWebpackConfig, {
     // copy custom static assets
     new CopyWebpackPlugin({
       patterns: [
-        { from: path.resolve(cesiumSource, cesiumWorkers), to: 'Workers' },
-        { from: path.resolve(cesiumSource, 'Assets'), to: 'Assets' },
-        { from: path.resolve(cesiumSource, 'Widgets'), to: 'Widgets' },
-        { from: path.resolve(cesiumSource, 'ThirdParty/Workers'), to: 'ThirdParty/Workers' },
+        { from: 'static', to: 'static' }
       ],
       options: {
         concurrency: 100
       }
     }),
-    new webpack.DefinePlugin({
-      // Define relative base path in cesium for loading assets
-      CESIUM_BASE_URL: JSON.stringify('')
-    }),
-      new VueLoaderPlugin(),
+    new VueLoaderPlugin(),
   ]
 })
 

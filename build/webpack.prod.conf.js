@@ -11,8 +11,6 @@ const baseWebpackConfig = require('./webpack.base.conf')
 const CopyWebpackPlugin = require('copy-webpack-plugin')
 const HtmlWebpackPlugin = require('html-webpack-plugin')
 const MiniCssExtractPlugin = require('mini-css-extract-plugin');
-const cesiumSource =  'node_modules/cesium/Source'
-const cesiumWorkers = 'node_modules/cesium/Build/Cesium/Workers'
 const TerserPlugin = require('terser-webpack-plugin')
 const { VueLoaderPlugin }  = require('vue-loader')
 const CompressionPlugin = require('compression-webpack-plugin');
@@ -47,8 +45,6 @@ const webpackConfig = merge(baseWebpackConfig, {
           },
       }),
     new webpack.DefinePlugin({
-      // Define relative base path in cesium for loading assets
-      CESIUM_BASE_URL: JSON.stringify(''),
       '_COMMIT_': JSON.stringify(gitRevisionPlugin.commithash()),
       '_BUILDDATE_': JSON.stringify((new Date().toString()))
     }),
@@ -85,12 +81,7 @@ const webpackConfig = merge(baseWebpackConfig, {
     new webpack.optimize.ModuleConcatenationPlugin(),
     new CopyWebpackPlugin({
       patterns: [
-        {from: path.join(cesiumSource, 'Assets'), to: 'Assets'},
-        {from: path.join(cesiumSource, 'Widgets'), to: 'Widgets'},
-        {from: cesiumWorkers, to: 'Workers'},
-        // {from: path.join(cesiumSource, 'ThirdParty'), to: 'ThirdParty'},
-        // {from: path.join(cesiumSource, '../Build/Cesium/ThirdParty/Workers'), to: 'ThirdParty/Workers', force: true},
-        // {from: path.join(cesiumSource, '../Build/Cesium/Workers'), to: 'Workers', force: true}
+        { from: 'static', to: 'static' }
       ]
     })
   ]

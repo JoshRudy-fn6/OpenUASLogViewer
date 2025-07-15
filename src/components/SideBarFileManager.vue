@@ -243,6 +243,7 @@ export default {
                 this.state.messages = event.data.messages
                 this.$eventHub.$emit('messages')
             } else if (event.data.messagesDoneLoading) {
+                perfMonitor.end('file-processing')
                 this.$eventHub.$emit('messagesDoneLoading')
             } else if (event.data.messageType) {
                 this.state.messages[event.data.messageType] = event.data.messageList

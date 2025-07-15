@@ -43,18 +43,15 @@ npm test
 
 ## Configuration
 
-### Cesium Ion Access Token (Optional)
+### Map Visualization
 
-The application uses Cesium for 3D visualization and mapping. While it works without configuration, you can get enhanced imagery and terrain data by setting up a free Cesium Ion account:
+The application now uses OpenLayers for 2D mapping and visualization. This provides:
+- Better performance and smaller bundle size
+- Improved mobile device compatibility
+- Wide variety of free map providers
+- Better web standards compliance
 
-1. Sign up for a free account at [https://cesium.com/ion/](https://cesium.com/ion/)
-2. Create an access token in your Ion dashboard
-3. Edit `src/config/cesium.js` and set your token:
-   ```javascript
-   export const CESIUM_ION_ACCESS_TOKEN = 'your_token_here'
-   ```
-
-**Note:** The application will work without a token using OpenStreetMap and other free providers, but you may see some 403 errors in the console for premium Cesium assets.
+The migration from Cesium to OpenLayers has been completed while maintaining all core functionality.
 
 # Docker
 
