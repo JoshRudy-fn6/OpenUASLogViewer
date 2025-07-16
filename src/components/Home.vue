@@ -189,7 +189,8 @@ export default {
             }
             Vue.delete(this.state.messages, 'AHR2')
             Vue.delete(this.state.messages, 'POS')
-            Vue.delete(this.state.messages, 'GPS')
+            // Keep GPS messages for timeline usage
+            // Vue.delete(this.state.messages, 'GPS')
 
             this.state.fences = this.dataExtractor.extractFences(this.state.messages)
 

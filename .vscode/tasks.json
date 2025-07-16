@@ -1,0 +1,209 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "Vehicle Icon Enhancement",
+            "type": "shell",
+            "command": "echo",
+            "args": [
+                "Task: Replace the vehicle icon with a simple quadcopter icon\n",
+                "Files to modify:\n",
+                "- src/components/OpenLayersViewer.vue (vehicle icon rendering)\n",
+                "- src/assets/ (add quadcopter icon asset)\n", 
+                "- Vehicle marker styling and icon selection logic\n",
+                "Implementation:\n",
+                "1. Create/find quadcopter icon (SVG or PNG)\n",
+                "2. Update vehicle marker styling in OpenLayersViewer\n",
+                "3. Replace current vehicle icon with quadcopter representation\n",
+                "4. Ensure icon scales properly with zoom levels\n",
+                "5. Test icon visibility across different map backgrounds"
+            ],
+            "group": "build",
+            "problemMatcher": []
+        },
+        {
+            "label": "Map Toolbar Enhancement", 
+            "type": "shell",
+            "command": "echo",
+            "args": [
+                "Task: Refine map toolbar and add 'Center on Vehicle' function\n",
+                "Files to modify:\n",
+                "- src/components/OpenLayersViewer.vue (toolbar layout)\n",
+                "- src/components/openLayersExtra/ (toolbar components)\n",
+                "- CSS/styling for top toolbar positioning\n",
+                "Implementation:\n",
+                "1. Move toolbar to top of map area\n",
+                "2. Add 'Center on Vehicle' button with icon\n",
+                "3. Implement zoom-to-vehicle functionality\n",
+                "4. Update toolbar styling and responsive layout\n",
+                "5. Add proper button icons and tooltips\n",
+                "6. Ensure toolbar doesn't interfere with timeline"
+            ],
+            "group": "build", 
+            "problemMatcher": []
+        },
+        {
+            "label": "Flight Path Color Coding",
+            "type": "shell", 
+            "command": "echo",
+            "args": [
+                "Task: Color code flight path spline for flight modes\n",
+                "Files to modify:\n",
+                "- src/components/OpenLayersViewer.vue (flight path rendering)\n",
+                "- Flight mode detection and color mapping logic\n",
+                "- src/libs/ (flight mode constants)\n",
+                "Color scheme:\n",
+                "- Red: Stabilize mode\n",
+                "- Orange: Loiter mode\n", 
+                "- Yellow: Auto mode\n",
+                "- Green: RTL (Return to Launch) mode\n",
+                "Implementation:\n",
+                "1. Extract flight mode data from log messages\n",
+                "2. Create color mapping for different flight modes\n",
+                "3. Segment flight path by mode changes\n",
+                "4. Apply colors to path segments\n",
+                "5. Add legend showing color meanings"
+            ],
+            "group": "build",
+            "problemMatcher": []
+        },
+        {
+            "label": "Timeline Interface Refinement",
+            "type": "shell",
+            "command": "echo", 
+            "args": [
+                "Task: Refine and style the timeline interface\n",
+                "Files to modify:\n",
+                "- src/components/openLayersExtra/timeline.js (styling)\n",
+                "- Timeline CSS and responsive design\n",
+                "- Timeline controls and layout\n",
+                "Implementation:\n",
+                "1. Improve timeline visual design and styling\n",
+                "2. Add better progress indicators\n",
+                "3. Enhance timeline controls (play, pause, speed)\n",
+                "4. Improve timeline scrubber design\n",
+                "5. Add time labels and markers\n",
+                "6. Ensure responsive design for different screen sizes\n",
+                "7. Add smooth animations and transitions"
+            ],
+            "group": "build",
+            "problemMatcher": []
+        },
+        {
+            "label": "Timeline Click Navigation",
+            "type": "shell",
+            "command": "echo",
+            "args": [
+                "Task: Enable timeline click navigation\n", 
+                "Files to modify:\n",
+                "- src/components/openLayersExtra/timeline.js (click handlers)\n",
+                "- Integration with map vehicle positioning\n",
+                "- Time synchronization logic\n",
+                "Implementation:\n",
+                "1. Add click event handlers to timeline\n",
+                "2. Calculate time position from click coordinates\n",
+                "3. Update current time and sync with map\n",
+                "4. Move aircraft to corresponding position\n",
+                "5. Update all time-dependent displays\n",
+                "6. Add visual feedback for click interactions\n",
+                "7. Ensure smooth transitions when jumping in time"
+            ],
+            "group": "build",
+            "problemMatcher": []
+        },
+        {
+            "label": "Timeline Color Coding",
+            "type": "shell",
+            "command": "echo",
+            "args": [
+                "Task: Add flight mode color coding to timeline\n",
+                "Files to modify:\n", 
+                "- src/components/openLayersExtra/timeline.js (color segments)\n",
+                "- Flight mode data integration\n",
+                "- Timeline background/progress bar styling\n",
+                "Color scheme (matching flight path):\n",
+                "- Red: Stabilize mode\n",
+                "- Orange: Loiter mode\n",
+                "- Yellow: Auto mode\n", 
+                "- Green: RTL mode\n",
+                "Implementation:\n",
+                "1. Extract flight mode changes with timestamps\n",
+                "2. Create colored segments on timeline background\n",
+                "3. Sync colors with flight path colors\n",
+                "4. Add flight mode labels/tooltips\n",
+                "5. Ensure colors are visible with timeline design\n",
+                "6. Add legend for flight mode colors"
+            ],
+            "group": "build", 
+            "problemMatcher": []
+        },
+        {
+            "label": "Flight Mode Data Integration",
+            "type": "shell",
+            "command": "echo",
+            "args": [
+                "Task: Extract and integrate flight mode data\n",
+                "Files to modify:\n",
+                "- src/libs/ (flight mode parsing)\n",
+                "- Message parsing for MODE messages\n",
+                "- Flight mode constants and mappings\n",
+                "Implementation:\n",
+                "1. Parse MODE messages from flight logs\n",
+                "2. Map mode numbers to mode names using frame_types\n",
+                "3. Create timeline of mode changes\n",
+                "4. Integrate with existing GPS timestamp system\n",
+                "5. Provide mode data to timeline and map components\n",
+                "6. Handle different log formats (bin/tlog)\n",
+                "7. Add error handling for missing mode data"
+            ],
+            "group": "build",
+            "problemMatcher": []
+        },
+        {
+            "label": "Build All Enhancements",
+            "type": "shell",
+            "command": "npm",
+            "args": ["run", "build"],
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            },
+            "problemMatcher": [],
+            "dependsOn": [
+                "Vehicle Icon Enhancement",
+                "Map Toolbar Enhancement", 
+                "Flight Path Color Coding",
+                "Timeline Interface Refinement",
+                "Timeline Click Navigation",
+                "Timeline Color Coding",
+                "Flight Mode Data Integration"
+            ]
+        },
+        {
+            "label": "Start Development Server",
+            "type": "shell",
+            "command": "npm", 
+            "args": ["run", "dev"],
+            "group": "build",
+            "problemMatcher": [],
+            "isBackground": true
+        },
+        {
+            "label": "Test Enhancements",
+            "type": "shell",
+            "command": "npm",
+            "args": ["run", "test"],
+            "group": "test",
+            "problemMatcher": [],
+            "dependsOn": "Build All Enhancements"
+        },
+        {
+            "label": "Lint and Fix Code",
+            "type": "shell", 
+            "command": "npm",
+            "args": ["run", "lint:fix"],
+            "group": "build",
+            "problemMatcher": ["$eslint-stylish"]
+        }
+    ]
+}

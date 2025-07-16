@@ -21,6 +21,7 @@
                 @trajectory-style-changed="changeTrajectoryStyle" />
         </div>
         <div id="mapContainer" ref="mapContainer"></div>
+        <div id="timelineContainer" ref="timelineContainer"></div>
     </div>
 </template>
 
@@ -42,6 +43,7 @@ import { defaults as defaultControls, FullScreen, ZoomToExtent } from 'ol/contro
 import { store } from './Globals.js'
 import { IMAGERY_PROVIDERS, DEFAULT_CENTER, DEFAULT_ZOOM } from '../config/openlayers.js'
 import OpenLayersSettingsWidget from './widgets/OpenLayersSettingsWidget.vue'
+import { OpenLayersTimeline, TimelineWidget } from './openLayersExtra/timeline.js'
 import ColorCoderMode from './openLayersExtra/colorCoderMode.js'
 import ColorCoderRange from './openLayersExtra/colorCoderRange.js'
 import ColorCoderPlot from './openLayersExtra/colorCoderPlot.js'
@@ -61,7 +63,9 @@ export default {
       vehicleLayer: null,
       waypointsLayer: null,
       animationFrame: null,
-      currentTimeIndex: 0
+      currentTimeIndex: 0,
+      timeline: null,
+      timelineWidget: null
     }
   },
 
@@ -79,6 +83,9 @@ export default {
     this.$eventHub.$off('hoveredTime')
     if (this.animationFrame) {
       cancelAnimationFrame(this.animationFrame)
+    }
+    if (this.timeline) {
+      this.timeline.destroy()
     }
   },
 
@@ -136,6 +143,9 @@ export default {
       // Add event handlers
       this.setupEventHandlers()
 
+      // Initialize timeline
+      this.initializeTimeline()
+
       // Load data if available
       if (this.state.currentTrajectory?.length > 0) {
         this.loadTrajectoryData()
@@ -174,6 +184,9 @@ export default {
             this.trajectoryLayer.getSource().addFeatures(trajectoryFeatures)
             this.vehicleLayer.getSource().addFeature(vehicleFeature)
             this.waypointsLayer.getSource().addFeatures(waypointFeatures)
+            
+            // Set up timeline with trajectory data
+            this.setupTimelineData()
             
             // Fit map to data extent
             this.fitToData()
@@ -396,6 +409,148 @@ export default {
       if (this.trajectoryLayer) {
         this.trajectoryLayer.changed()
       }
+    },
+
+    initializeTimeline () {
+      // Create timeline instance
+      this.timeline = new OpenLayersTimeline(this, {
+        updateInterval: 50,
+        autoLoop: false
+      })
+
+      // Create timeline widget
+      this.timelineWidget = new TimelineWidget(this.$refs.timelineContainer, this.timeline)
+    },
+
+    setupTimelineData () {
+      console.log('=== Timeline Data Setup ===')
+      console.log('Timeline exists:', !!this.timeline)
+      console.log('Current trajectory:', !!this.state.currentTrajectory)
+      console.log('Messages available:', !!this.state.messages)
+      
+      if (this.state.messages) {
+        console.log('Available message types:', Object.keys(this.state.messages))
+      }
+      
+      if (!this.timeline || !this.state.currentTrajectory || this.state.currentTrajectory.length === 0) {
+        console.log('Timeline setup skipped - missing required data')
+        return
+      }
+
+      // Get time range from trajectory data
+      const times = this.state.currentTrajectory.map(point => point[3]) // time_boot_ms
+      const startTime = Math.min(...times)
+      const endTime = Math.max(...times)
+
+      console.log('Timeline setup - Start time:', startTime, 'End time:', endTime, 'Duration:', endTime - startTime)
+      console.log('Trajectory points count:', this.state.currentTrajectory.length)
+      console.log('First few trajectory points:', this.state.currentTrajectory.slice(0, 3))
+
+      // Set timeline range
+      this.timeline.setTimeRange(startTime, endTime)
+      this.timeline.setCurrentTime(startTime)
+
+      // Add color-coded background for flight modes
+      this.setupTimelineColorCoding(startTime, endTime)
+      
+      // Refresh GPS display now that we have data
+      if (this.timelineWidget) {
+        this.timelineWidget.refreshGPSDisplay()
+      }
+    },
+
+    setupTimelineColorCoding (startTime, endTime) {
+      // Create mode segments for timeline coloring
+      const modeSegments = this.createModeSegments(startTime, endTime)
+      if (this.timelineWidget) {
+        this.timelineWidget.setModeSegments(modeSegments)
+      }
+    },
+
+    createModeSegments (startTime, endTime) {
+      const segments = []
+      
+      if (!this.state.flightModeChanges || this.state.flightModeChanges.length === 0) {
+        // No mode data available, show default segment
+        return [{
+          start: 0,
+          end: 1,
+          color: '#666',
+          mode: 'NO_DATA'
+        }]
+      }
+
+      const duration = endTime - startTime
+      let currentTime = startTime
+      
+      // Initialize with the first mode
+      let currentMode = this.state.flightModeChanges[0][1]
+      
+      for (let i = 0; i < this.state.flightModeChanges.length; i++) {
+        const modeChange = this.state.flightModeChanges[i]
+        const modeTime = modeChange[0]
+        const modeName = modeChange[1]
+        
+        // If this mode change is within our time range
+        if (modeTime >= startTime && modeTime <= endTime) {
+          // Close previous segment if it exists
+          if (currentTime < modeTime) {
+            const segmentStart = (currentTime - startTime) / duration
+            const segmentEnd = (modeTime - startTime) / duration
+            
+            segments.push({
+              start: segmentStart,
+              end: segmentEnd,
+              color: this.getModeColor(currentMode),
+              mode: currentMode
+            })
+          }
+          
+          currentTime = modeTime
+          currentMode = modeName
+        }
+      }
+      
+      // Add final segment from last mode change to end
+      if (currentTime < endTime) {
+        const segmentStart = (currentTime - startTime) / duration
+        segments.push({
+          start: segmentStart,
+          end: 1,
+          color: this.getModeColor(currentMode),
+          mode: currentMode
+        })
+      }
+      
+      return segments
+    },
+
+    getModeColor (modeName) {
+      // Define colors for common flight modes
+      const modeColors = {
+        'MANUAL': '#ff4444',      // Red
+        'STABILIZE': '#ff8800',   // Orange  
+        'ALTHOLD': '#ffff00',     // Yellow
+        'AUTO': '#44ff44',        // Green
+        'GUIDED': '#4444ff',      // Blue
+        'LOITER': '#ff44ff',      // Magenta
+        'RTL': '#44ffff',         // Cyan
+        'CIRCLE': '#8844ff',      // Purple
+        'LAND': '#ff8844',        // Orange-red
+        'BRAKE': '#888888',       // Gray
+        'THROW': '#ffaa44',       // Light orange
+        'AVOID_ADSB': '#aa44ff',  // Light purple
+        'GUIDED_NOGPS': '#44aaff', // Light blue
+        'SMART_RTL': '#aaff44',   // Light green
+        'FLOWHOLD': '#ffaa88',    // Light orange-pink
+        'FOLLOW': '#88aaff',      // Light blue-purple
+        'ZIGZAG': '#aaff88',      // Light green-yellow
+        'SYSTEMID': '#ff88aa',    // Light red-purple
+        'AUTOROTATE': '#88ffaa',  // Light cyan-green
+        'AUTO_RTL': '#aa88ff'     // Light purple-blue
+      }
+      
+      return modeColors[modeName] || '#666666' // Default gray for unknown modes
     }
   },
 
@@ -453,7 +608,203 @@ export default {
 
 #mapContainer {
     width: 100%;
+    height: calc(100% - 100px); /* Leave space for larger timeline */
+}
+
+#timelineContainer {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 100px; /* Increased height for time markers */
+    background: rgba(42, 42, 42, 0.95);
+    border-top: 1px solid #555;
+}
+
+/* Timeline Widget Styles */
+.timeline-widget {
+    display: flex;
+    flex-direction: column;
     height: 100%;
+    padding: 10px;
+}
+
+.timeline-gps-info {
+    display: flex;
+    justify-content: center;
+    margin-bottom: 5px;
+}
+
+.gps-timestamp {
+    font-size: 11px;
+    color: #ccc;
+    background: rgba(0,0,0,0.6);
+    padding: 2px 6px;
+    border-radius: 3px;
+    border: 1px solid #555;
+}
+
+.timeline-controls {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 10px;
+}
+
+.timeline-btn {
+    background: #444;
+    color: white;
+    border: 1px solid #666;
+    border-radius: 3px;
+    padding: 5px 10px;
+    cursor: pointer;
+    font-size: 14px;
+}
+
+.timeline-btn:hover {
+    background: #555;
+}
+
+.time-display {
+    color: white;
+    font-family: monospace;
+    font-size: 14px;
+    min-width: 60px;
+}
+
+.speed-select {
+    background: #444;
+    color: white;
+    border: 1px solid #666;
+    border-radius: 3px;
+    padding: 2px 5px;
+}
+
+.timeline-track {
+    position: relative;
+    height: 20px;
+    background: #333;
+    border-radius: 10px;
+    cursor: pointer;
+    flex: 1;
+    margin-top: 40px; /* More space for time markers */
+}
+
+.timeline-time-markers {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 20px; /* Same as timeline track */
+    pointer-events: none;
+    z-index: 50;
+    overflow: visible;
+}
+
+.time-marker {
+    position: absolute;
+    font-size: 9px;
+    color: #fff;
+    white-space: nowrap;
+    user-select: none;
+    z-index: 55;
+    background: rgba(0,0,0,0.85);
+    padding: 1px 2px;
+    border-radius: 2px;
+    border: 1px solid #666;
+    text-shadow: 0 0 2px rgba(0,0,0,0.8);
+    font-weight: bold;
+}
+
+.time-marker.major-marker {
+    z-index: 60;
+    transition: all 0.2s ease;
+}
+
+.time-marker.major-marker:hover {
+    background: rgba(0,100,200,0.9);
+    border-color: #0066cc;
+    transform: translateX(-50%) scale(1.1);
+    font-weight: bold;
+}
+
+.time-tick {
+    position: absolute;
+    background-color: #fff;
+    user-select: none;
+    z-index: 30;
+    box-shadow: 0 0 1px rgba(0,0,0,0.5);
+}
+
+.time-tick.major-tick {
+    z-index: 35;
+    background-color: #fff;
+}
+
+.time-tick.minor-tick {
+    z-index: 25;
+    background-color: #ddd;
+}
+
+.time-tick.micro-tick {
+    z-index: 20;
+    background-color: #bbb;
+}
+
+.timeline-background {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: #333;
+    border-radius: 10px;
+}
+
+.timeline-mode-segments {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    border-radius: 10px;
+    overflow: hidden;
+}
+
+.mode-segment {
+    transition: opacity 0.2s ease;
+}
+
+.mode-segment:hover {
+    opacity: 0.9 !important;
+}
+
+.timeline-progress {
+    position: absolute;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    background: linear-gradient(to right, #4CAF50, #81C784);
+    border-radius: 10px;
+    width: 0%;
+    transition: width 0.1s ease;
+}
+
+.timeline-thumb {
+    position: absolute;
+    top: -2px;
+    width: 24px;
+    height: 24px;
+    background: #fff;
+    border: 2px solid #4CAF50;
+    border-radius: 50%;
+    cursor: grab;
+    transform: translateX(-50%);
+    left: 0%;
+}
+
+.timeline-thumb:active {
+    cursor: grabbing;
 }
 
 .infoPanel {

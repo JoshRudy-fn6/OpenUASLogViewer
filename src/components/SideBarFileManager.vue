@@ -82,7 +82,7 @@ export default {
             oReq.open('GET', url, true)
             oReq.responseType = 'arraybuffer'
 
-            oReq.onload = function (oEvent) {
+            oReq.onload = (oEvent) => {
                 const arrayBuffer = oReq.response
 
                 this.transferMessage = 'Download Done'
@@ -241,6 +241,44 @@ export default {
                 this.state.metadata = event.data.metadata
             } else if (event.data.messages) {
                 this.state.messages = event.data.messages
+                console.log('Messages loaded:', Object.keys(this.state.messages))
+                
+                // Enhanced GPS debugging
+                const gpsKeys = Object.keys(this.state.messages).filter(key => 
+                    key.includes('GPS') || key.includes('POS') || key.includes('GLOBAL')
+                )
+                console.log('GPS-related message types found:', gpsKeys)
+                
+                gpsKeys.forEach(key => {
+                    const messages = this.state.messages[key]
+                    if (messages && messages.length > 0) {
+                        console.log(`${key} messages: ${messages.length} found`)
+                        console.log(`First ${key} message:`, messages[0])
+                        console.log(`${key} message fields:`, Object.keys(messages[0]))
+                        if (messages.length > 1) {
+                            console.log(`Last ${key} message:`, messages[messages.length - 1])
+                        }
+                    }
+                })
+                
+                // Also check for any messages with time fields
+                const timeMessages = Object.keys(this.state.messages).filter(key => {
+                    const messages = this.state.messages[key]
+                    return messages && messages.length > 0 && 
+                           messages[0] && (
+                               messages[0].time_week !== undefined ||
+                               messages[0].time_unix_usec !== undefined ||
+                               messages[0].GWk !== undefined ||
+                               messages[0].time_boot_ms !== undefined
+                           )
+                })
+                console.log('Message types with time fields:', timeMessages)
+                
+                if (this.state.messages.GPS) {
+                    console.log('GPS messages found:', this.state.messages.GPS.length)
+                    console.log('First GPS message:', this.state.messages.GPS[0])
+                    console.log('Last GPS message:', this.state.messages.GPS[this.state.messages.GPS.length - 1])
+                }
                 this.$eventHub.$emit('messages')
             } else if (event.data.messagesDoneLoading) {
                 perfMonitor.end('file-processing')
