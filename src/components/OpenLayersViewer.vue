@@ -1,18 +1,28 @@
 <template>
     <div id="wrapper">
         <div id="toolbar">
-            <table class="infoPanel">
+            <div class="toolbar-section">
+                <button class="toolbar-btn center-vehicle-btn" @click="centerOnVehicle" title="Center on Vehicle">
+                    🎯
+                </button>
+                <button class="toolbar-btn zoom-fit-btn" @click="fitToData" title="Zoom to Fit All Data">
+                    🔍
+                </button>
+            </div>
+            <div class="toolbar-section">
                 <select class="color-coding-select" v-model="selectedColorCoder" v-on:change="updateColor">
                     <option :key="key" :value="key" v-for="(value, key) in useableColorCoders">
                         {{ key }}
                     </option>
                 </select>
-                <tbody>
-                    <tr v-bind:key="mode[0]" v-for="mode in colorCodeLegend">
-                        <td class="mode" v-bind:style="{ color: mode.color }">{{ mode.name }}</td>
-                    </tr>
-                </tbody>
-            </table>
+                <table class="infoPanel">
+                    <tbody>
+                        <tr v-bind:key="mode[0]" v-for="mode in colorCodeLegend">
+                            <td class="mode" v-bind:style="{ color: mode.color }">{{ mode.name }}</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
             <OpenLayersSettingsWidget 
                 @base-layer-changed="changeBaseLayer"
                 @trajectory-visibility-changed="toggleTrajectoryVisibility"
@@ -109,7 +119,7 @@ export default {
 
       this.vehicleLayer = new VectorLayer({
         source: new VectorSource(),
-        style: this.getVehicleStyle,
+        style: (feature) => this.getVehicleStyle(),
         zIndex: 3
       })
 
@@ -173,18 +183,25 @@ export default {
                 this.map.getTargetElement().style.cursor = features.length > 0 ? 'pointer' : ''
             })
         },
-        
-        loadTrajectoryData() {
+         loadTrajectoryData() {
+            console.log('=== Loading Trajectory Data ===')
+            console.log('Current trajectory length:', this.state.currentTrajectory?.length)
+            
             // Convert trajectory data to OpenLayers features
             const trajectoryFeatures = this.createTrajectoryFeatures()
             const vehicleFeature = this.createVehicleFeature()
             const waypointFeatures = this.createWaypointFeatures()
             
+            console.log('Created features - trajectory:', trajectoryFeatures.length, 'vehicle:', !!vehicleFeature, 'waypoints:', waypointFeatures.length)
+
             // Add features to layers
             this.trajectoryLayer.getSource().addFeatures(trajectoryFeatures)
             this.vehicleLayer.getSource().addFeature(vehicleFeature)
             this.waypointsLayer.getSource().addFeatures(waypointFeatures)
             
+            console.log('Added features to layers')
+            console.log('Vehicle layer features:', this.vehicleLayer.getSource().getFeatures().length)
+
             // Set up timeline with trajectory data
             this.setupTimelineData()
             
@@ -198,13 +215,17 @@ export default {
                 fromLonLat([point[0], point[1]])
             )
             
-            // Create line string for full trajectory
-            const lineFeature = new Feature({
-                geometry: new LineString(coordinates),
-                type: 'trajectory'
-            })
-            
-            features.push(lineFeature)
+            // Create flight mode color-coded segments
+            if (this.state.flightModeChanges && this.state.flightModeChanges.length > 0) {
+                features.push(...this.createColorCodedTrajectorySegments())
+            } else {
+                // Fallback to single trajectory line if no flight mode data
+                const lineFeature = new Feature({
+                    geometry: new LineString(coordinates),
+                    type: 'trajectory'
+                })
+                features.push(lineFeature)
+            }
             
             // Create point features for interactive time scrubbing
             this.state.currentTrajectory.forEach((point, index) => {
@@ -220,6 +241,96 @@ export default {
             
             return features
         },
+
+        createColorCodedTrajectorySegments() {
+            const features = []
+            const trajectory = this.state.currentTrajectory
+            
+            if (!trajectory || trajectory.length === 0) {
+                return features
+            }
+            
+            let currentSegment = []
+            let currentMode = this.getFlightModeAtTime(trajectory[0][3])
+            
+            for (let i = 0; i < trajectory.length; i++) {
+                const point = trajectory[i]
+                const pointTime = point[3]
+                const pointMode = this.getFlightModeAtTime(pointTime)
+                
+                // If mode changed, create segment for previous mode and start new one
+                if (pointMode !== currentMode && currentSegment.length > 0) {
+                    // Add current point to complete the segment
+                    currentSegment.push(fromLonLat([point[0], point[1]]))
+                    
+                    // Create feature for this segment
+                    if (currentSegment.length >= 2) {
+                        const segmentFeature = new Feature({
+                            geometry: new LineString(currentSegment),
+                            type: 'trajectory-segment',
+                            flightMode: currentMode
+                        })
+                        
+                        // Apply mode-specific styling
+                        segmentFeature.setStyle(new Style({
+                            stroke: new Stroke({
+                                color: this.getModeColor(currentMode),
+                                width: 3,
+                                lineCap: 'round',
+                                lineJoin: 'round'
+                            })
+                        }))
+                        
+                        features.push(segmentFeature)
+                    }
+                    
+                    // Start new segment
+                    currentSegment = [fromLonLat([point[0], point[1]])]
+                    currentMode = pointMode
+                } else {
+                    currentSegment.push(fromLonLat([point[0], point[1]]))
+                }
+            }
+            
+            // Add final segment
+            if (currentSegment.length >= 2) {
+                const segmentFeature = new Feature({
+                    geometry: new LineString(currentSegment),
+                    type: 'trajectory-segment',
+                    flightMode: currentMode
+                })
+                
+                segmentFeature.setStyle(new Style({
+                    stroke: new Stroke({
+                        color: this.getModeColor(currentMode),
+                        width: 3,
+                        lineCap: 'round',
+                        lineJoin: 'round'
+                    })
+                }))
+                
+                features.push(segmentFeature)
+            }
+            
+            return features
+        },
+
+        getFlightModeAtTime(time) {
+            if (!this.state.flightModeChanges || this.state.flightModeChanges.length === 0) {
+                return 'UNKNOWN'
+            }
+            
+            let currentMode = this.state.flightModeChanges[0][1]
+            
+            for (const modeChange of this.state.flightModeChanges) {
+                if (modeChange[0] > time) {
+                    break
+                }
+                currentMode = modeChange[1]
+            }
+            
+            return currentMode
+        },
         
         getTrajectoryStyle () {
           return new Style({
@@ -230,14 +341,27 @@ export default {
           })
         },
         
-        getVehicleStyle () {
+        getVehicleStyle (heading = 0) {
+          // Try a simple circle first to test if the vehicle layer is working
           return new Style({
             image: new CircleStyle({
               radius: 8,
-              fill: new Fill({ color: '#00ff00' }),
-              stroke: new Stroke({ color: '#000000', width: 2 })
+              fill: new Fill({ color: '#ff0000' }),
+              stroke: new Stroke({ color: '#ffffff', width: 2 })
             })
           })
+          
+          // Original icon approach (commented out for testing)
+          // return new Style({
+          //   image: new Icon({
+          //     src: require('@/assets/quadcopter-icon.svg'),
+          //     scale: 1.2,
+          //     rotation: heading,
+          //     rotateWithView: false,
+          //     anchor: [0.5, 0.5],
+          //     opacity: 1.0
+          //   })
+          // })
         },
         
         getWaypointStyle () {
@@ -306,14 +430,19 @@ export default {
         },
         
         showAttitude (time) {
+          console.log('showAttitude called with time:', time)
           // Update vehicle position and orientation based on time
           this.updateVehiclePosition(time)
         },
         
         updateVehiclePosition (time) {
+          console.log('updateVehiclePosition called with time:', time)
           // Find closest trajectory point to the given time
           const trajectory = this.state.currentTrajectory
-          if (!trajectory || trajectory.length === 0) return
+          if (!trajectory || trajectory.length === 0) {
+            console.log('No trajectory data available')
+            return
+          }
           
           let closestIndex = 0
           let minTimeDiff = Math.abs(trajectory[0][3] - time)
@@ -327,9 +456,15 @@ export default {
           }
 
           const point = trajectory[closestIndex]
+          console.log('Moving vehicle to point:', point, 'at index:', closestIndex)
+          
           const vehicleFeature = this.vehicleLayer.getSource().getFeatures()[0]
           if (vehicleFeature) {
-            vehicleFeature.getGeometry().setCoordinates(fromLonLat([point[0], point[1]]))
+            const newCoords = fromLonLat([point[0], point[1]])
+            console.log('Setting vehicle coordinates to:', newCoords)
+            vehicleFeature.getGeometry().setCoordinates(newCoords)
+          } else {
+            console.log('No vehicle feature found in layer')
           }
         },
 
@@ -384,6 +519,27 @@ export default {
         toggleVehicleVisibility (visible) {
           if (this.vehicleLayer) {
             this.vehicleLayer.setVisible(visible)
+          }
+        },
+
+        centerOnVehicle () {
+          if (!this.vehicleLayer || !this.map) {
+            return
+          }
+          
+          const vehicleFeature = this.vehicleLayer.getSource().getFeatures()[0]
+          if (!vehicleFeature) {
+            return
+          }
+          
+          const vehicleGeometry = vehicleFeature.getGeometry()
+          if (vehicleGeometry) {
+            const coordinates = vehicleGeometry.getCoordinates()
+            this.map.getView().animate({
+              center: coordinates,
+              duration: 500,
+              zoom: Math.max(this.map.getView().getZoom(), 16) // Ensure minimum zoom level for vehicle visibility
+            })
           }
         },
         
@@ -601,14 +757,42 @@ export default {
     top: 10px;
     left: 10px;
     z-index: 1000;
-    background: rgba(42, 42, 42, 0.8);
-    padding: 10px;
-    border-radius: 5px;
+    background: rgba(42, 42, 42, 0.9);
+    padding: 12px;
+    border-radius: 8px;
+    border: 1px solid #555;
+    backdrop-filter: blur(5px);
+}
+
+.toolbar-section {
+    margin-bottom: 8px;
+}
+
+.toolbar-btn {
+    background: rgba(60, 60, 60, 0.8);
+    border: 1px solid #666;
+    color: #fff;
+    padding: 6px 10px;
+    margin-right: 5px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 14px;
+    transition: all 0.2s ease;
+}
+
+.toolbar-btn:hover {
+    background: rgba(80, 80, 80, 0.9);
+    border-color: #888;
+    transform: translateY(-1px);
+}
+
+.toolbar-btn:active {
+    transform: translateY(0);
 }
 
 #mapContainer {
     width: 100%;
-    height: calc(100% - 100px); /* Leave space for larger timeline */
+    height: calc(100% - 120px); /* Leave space for enhanced timeline */
 }
 
 #timelineContainer {
@@ -616,86 +800,128 @@ export default {
     bottom: 0;
     left: 0;
     right: 0;
-    height: 100px; /* Increased height for time markers */
-    background: rgba(42, 42, 42, 0.95);
-    border-top: 1px solid #555;
+    height: 120px; /* Increased height for better controls and time markers */
+    background: linear-gradient(180deg, rgba(42, 42, 42, 0.95) 0%, rgba(32, 32, 32, 0.98) 100%);
+    border-top: 2px solid #555;
+    box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.3);
 }
 
-/* Timeline Widget Styles */
+/* Enhanced Timeline Widget Styles */
 .timeline-widget {
     display: flex;
     flex-direction: column;
     height: 100%;
-    padding: 10px;
+    padding: 12px;
 }
 
 .timeline-gps-info {
     display: flex;
     justify-content: center;
-    margin-bottom: 5px;
+    margin-bottom: 8px;
 }
 
 .gps-timestamp {
-    font-size: 11px;
-    color: #ccc;
-    background: rgba(0,0,0,0.6);
-    padding: 2px 6px;
-    border-radius: 3px;
-    border: 1px solid #555;
+    font-size: 12px;
+    font-family: 'Courier New', monospace;
+    color: #fff;
+    background: linear-gradient(135deg, rgba(0, 100, 200, 0.8) 0%, rgba(0, 80, 160, 0.9) 100%);
+    padding: 4px 10px;
+    border-radius: 6px;
+    border: 1px solid #0066cc;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
 }
 
 .timeline-controls {
     display: flex;
     align-items: center;
-    gap: 10px;
-    margin-bottom: 10px;
+    justify-content: center;
+    gap: 12px;
+    margin-bottom: 12px;
 }
 
 .timeline-btn {
-    background: #444;
+    background: linear-gradient(135deg, #4a5568 0%, #2d3748 100%);
     color: white;
-    border: 1px solid #666;
-    border-radius: 3px;
-    padding: 5px 10px;
+    border: 1px solid #718096;
+    border-radius: 6px;
+    padding: 8px 12px;
     cursor: pointer;
-    font-size: 14px;
+    font-size: 16px;
+    transition: all 0.2s ease;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+    min-width: 40px;
 }
 
 .timeline-btn:hover {
-    background: #555;
+    background: linear-gradient(135deg, #5a6578 0%, #3d4758 100%);
+    border-color: #a0aec0;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+}
+
+.timeline-btn:active {
+    transform: translateY(0);
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+}
+
+.play-pause-btn {
+    background: linear-gradient(135deg, #38a169 0%, #2f855a 100%);
+    font-size: 18px;
+    min-width: 50px;
+}
+
+.play-pause-btn:hover {
+    background: linear-gradient(135deg, #48bb78 0%, #38a169 100%);
 }
 
 .time-display {
-    color: white;
-    font-family: monospace;
-    font-size: 14px;
-    min-width: 60px;
+    color: #e2e8f0;
+    font-family: 'Courier New', monospace;
+    font-size: 16px;
+    font-weight: bold;
+    min-width: 80px;
+    text-align: center;
+    background: rgba(0, 0, 0, 0.3);
+    padding: 6px 10px;
+    border-radius: 4px;
+    border: 1px solid #4a5568;
 }
 
 .speed-select {
-    background: #444;
+    background: linear-gradient(135deg, #4a5568 0%, #2d3748 100%);
     color: white;
-    border: 1px solid #666;
-    border-radius: 3px;
-    padding: 2px 5px;
+    border: 1px solid #718096;
+    border-radius: 6px;
+    padding: 6px 8px;
+    font-size: 14px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.speed-select:hover {
+    border-color: #a0aec0;
+    background: linear-gradient(135deg, #5a6578 0%, #3d4758 100%);
 }
 
 .timeline-track {
     position: relative;
-    height: 20px;
-    background: #333;
-    border-radius: 10px;
+    height: 24px;
+    background: linear-gradient(180deg, #2d3748 0%, #1a202c 100%);
+    border-radius: 12px;
     cursor: pointer;
     flex: 1;
-    margin-top: 40px; /* More space for time markers */
+    margin-top: 20px;
+    border: 2px solid #4a5568;
+    box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.3);
+    overflow: hidden;
 }
 
 .timeline-time-markers {
     position: absolute;
-    top: 0;
+    top: -25px;
     left: 0;
     right: 0;
-    height: 20px; /* Same as timeline track */
+    height: 25px;
     pointer-events: none;
     z-index: 50;
     overflow: visible;
@@ -703,52 +929,57 @@ export default {
 
 .time-marker {
     position: absolute;
-    font-size: 9px;
-    color: #fff;
+    font-size: 10px;
+    color: #e2e8f0;
     white-space: nowrap;
     user-select: none;
     z-index: 55;
-    background: rgba(0,0,0,0.85);
-    padding: 1px 2px;
-    border-radius: 2px;
-    border: 1px solid #666;
-    text-shadow: 0 0 2px rgba(0,0,0,0.8);
-    font-weight: bold;
+    background: linear-gradient(135deg, rgba(0, 0, 0, 0.8) 0%, rgba(26, 32, 44, 0.9) 100%);
+    padding: 2px 6px;
+    border-radius: 4px;
+    border: 1px solid #4a5568;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8);
+    font-weight: 500;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
 }
 
 .time-marker.major-marker {
     z-index: 60;
     transition: all 0.2s ease;
+    font-weight: 600;
+    font-size: 11px;
 }
 
 .time-marker.major-marker:hover {
-    background: rgba(0,100,200,0.9);
+    background: linear-gradient(135deg, rgba(0, 100, 200, 0.9) 0%, rgba(0, 80, 160, 0.95) 100%);
     border-color: #0066cc;
-    transform: translateX(-50%) scale(1.1);
-    font-weight: bold;
+    transform: translateX(-50%) scale(1.05);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.4);
 }
 
 .time-tick {
     position: absolute;
-    background-color: #fff;
+    background-color: #cbd5e0;
     user-select: none;
     z-index: 30;
-    box-shadow: 0 0 1px rgba(0,0,0,0.5);
+    box-shadow: 0 0 2px rgba(0, 0, 0, 0.3);
 }
 
 .time-tick.major-tick {
     z-index: 35;
-    background-color: #fff;
+    background-color: #e2e8f0;
+    box-shadow: 0 0 3px rgba(0, 0, 0, 0.4);
 }
 
 .time-tick.minor-tick {
     z-index: 25;
-    background-color: #ddd;
+    background-color: #a0aec0;
 }
 
 .time-tick.micro-tick {
     z-index: 20;
-    background-color: #bbb;
+    background-color: #718096;
+    opacity: 0.6;
 }
 
 .timeline-background {
@@ -767,16 +998,22 @@ export default {
     left: 0;
     right: 0;
     bottom: 0;
-    border-radius: 10px;
+    border-radius: 12px;
     overflow: hidden;
+    z-index: 10;
 }
 
 .mode-segment {
-    transition: opacity 0.2s ease;
+    transition: all 0.3s ease;
+    box-shadow: inset 0 1px 2px rgba(255, 255, 255, 0.2);
+    border: 1px solid rgba(255, 255, 255, 0.1);
 }
 
 .mode-segment:hover {
-    opacity: 0.9 !important;
+    opacity: 0.95 !important;
+    transform: scaleY(1.1);
+    box-shadow: inset 0 1px 2px rgba(255, 255, 255, 0.3), 0 2px 4px rgba(0, 0, 0, 0.2);
+    z-index: 15;
 }
 
 .timeline-progress {
@@ -784,27 +1021,39 @@ export default {
     top: 0;
     left: 0;
     bottom: 0;
-    background: linear-gradient(to right, #4CAF50, #81C784);
-    border-radius: 10px;
+    background: linear-gradient(90deg, #38a169 0%, #48bb78 50%, #68d391 100%);
+    border-radius: 12px;
     width: 0%;
     transition: width 0.1s ease;
+    z-index: 20;
+    box-shadow: 0 0 8px rgba(56, 161, 105, 0.4);
 }
 
 .timeline-thumb {
     position: absolute;
-    top: -2px;
-    width: 24px;
-    height: 24px;
-    background: #fff;
-    border: 2px solid #4CAF50;
+    top: -4px;
+    width: 28px;
+    height: 28px;
+    background: linear-gradient(135deg, #ffffff 0%, #f7fafc 100%);
+    border: 3px solid #38a169;
     border-radius: 50%;
     cursor: grab;
     transform: translateX(-50%);
     left: 0%;
+    z-index: 30;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3), 0 0 0 2px rgba(56, 161, 105, 0.2);
+    transition: all 0.2s ease;
+}
+
+.timeline-thumb:hover {
+    transform: translateX(-50%) scale(1.1);
+    box-shadow: 0 6px 12px rgba(0, 0, 0, 0.4), 0 0 0 3px rgba(56, 161, 105, 0.3);
 }
 
 .timeline-thumb:active {
     cursor: grabbing;
+    transform: translateX(-50%) scale(0.95);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3), 0 0 0 2px rgba(56, 161, 105, 0.4);
 }
 
 .infoPanel {

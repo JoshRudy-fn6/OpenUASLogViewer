@@ -110,8 +110,12 @@ export class OpenLayersTimeline {
     
     updateVisualization() {
         // Update map visualization based on current time
+        console.log('Timeline updateVisualization called with time:', this.currentTime)
         if (this.mapViewer) {
+            console.log('Calling mapViewer.showAttitude')
             this.mapViewer.showAttitude(this.currentTime)
+        } else {
+            console.log('No mapViewer available')
         }
     }
     
@@ -307,6 +311,7 @@ export class TimelineWidget {
         const rect = this.track.getBoundingClientRect()
         const percentage = Math.max(0, Math.min(1, (event.clientX - rect.left) / rect.width))
         const time = this.timeline.percentageToTime(percentage)
+        console.log('Timeline clicked - percentage:', percentage, 'time:', time)
         this.timeline.setCurrentTime(time)
     }
     
