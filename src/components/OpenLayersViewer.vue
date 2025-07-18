@@ -574,6 +574,9 @@ export default {
         autoLoop: false
       })
 
+      // Give timeline access to event hub
+      this.timeline.eventHub = this.$eventHub
+
       // Create timeline widget
       this.timelineWidget = new TimelineWidget(this.$refs.timelineContainer, this.timeline)
     },

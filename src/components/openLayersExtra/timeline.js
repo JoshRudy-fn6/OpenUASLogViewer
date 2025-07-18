@@ -114,6 +114,14 @@ export class OpenLayersTimeline {
         if (this.mapViewer) {
             console.log('Calling mapViewer.showAttitude')
             this.mapViewer.showAttitude(this.currentTime)
+            
+            // Emit timeline time change event for other components (like MessageViewer)
+            if (this.eventHub) {
+                this.eventHub.$emit('timeline-time-changed', this.currentTime)
+                console.log('Emitted timeline-time-changed event:', this.currentTime)
+            } else {
+                console.warn('No event hub available for timeline events')
+            }
         } else {
             console.log('No mapViewer available')
         }

@@ -132,7 +132,10 @@ export default {
                 }
             }
             if (this.state.textMessages.length === 0) {
+                console.log('Extracting text messages from:', Object.keys(this.state.messages))
                 this.state.textMessages = this.dataExtractor.extractTextMessages(this.state.messages)
+                console.log('Extracted text messages count:', this.state.textMessages.length)
+                console.log('Sample text messages:', this.state.textMessages.slice(0, 3))
             }
             Vue.delete(this.state.messages, 'MSG')
 

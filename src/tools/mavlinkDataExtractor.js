@@ -305,12 +305,28 @@ export class MavlinkDataExtractor {
 
     static extractTextMessages (messages) {
         const texts = []
+        console.log('MAVLink extractTextMessages called with message types:', Object.keys(messages))
+        
         if ('STATUSTEXT' in messages) {
             const textMsgs = messages.STATUSTEXT
+            console.log('Found STATUSTEXT messages:', textMsgs.text?.length || 'unknown count')
             for (const i in textMsgs.time_boot_ms) {
                 texts.push([textMsgs.time_boot_ms[i], textMsgs.severity[i], textMsgs.text[i]])
             }
         }
+        
+        // Also check for other message types that might contain text
+        if ('PARAM_VALUE' in messages) {
+            const paramMsgs = messages.PARAM_VALUE
+            if (paramMsgs.param_id && paramMsgs.time_boot_ms) {
+                console.log('Found PARAM_VALUE messages:', paramMsgs.param_id?.length || 'unknown count')
+                for (const i in paramMsgs.time_boot_ms) {
+                    texts.push([paramMsgs.time_boot_ms[i], 6, `PARAM: ${paramMsgs.param_id[i]} = ${paramMsgs.param_value[i]}`])
+                }
+            }
+        }
+        
+        console.log('Extracted total text messages:', texts.length)
         return texts
     }
 

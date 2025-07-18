@@ -295,18 +295,24 @@ export class DataflashDataExtractor {
 
     static extractTextMessages (messages) {
         const texts = []
+        console.log('Dataflash extractTextMessages called with message types:', Object.keys(messages))
+        
         if ('STATUSTEXT' in messages) {
             const textMsgs = messages.STATUSTEXT
+            console.log('Found STATUSTEXT messages:', textMsgs.text?.length || 'unknown count')
             for (const i in textMsgs.time_boot_ms) {
                 texts.push([textMsgs.time_boot_ms[i], textMsgs.severity[i], textMsgs.text[i]])
             }
         }
         if ('MSG' in messages) {
             const textMsgs = messages.MSG
+            console.log('Found MSG messages:', textMsgs.Message?.length || 'unknown count')
             for (const i in textMsgs.time_boot_ms) {
                 texts.push([textMsgs.time_boot_ms[i], 0, textMsgs.Message[i]])
             }
         }
+        
+        console.log('Extracted total text messages:', texts.length)
         return texts
     }
 
