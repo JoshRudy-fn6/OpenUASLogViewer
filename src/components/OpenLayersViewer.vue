@@ -914,6 +914,17 @@ export default {
     border: 2px solid #4a5568;
     box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.3);
     overflow: hidden;
+    transition: all 0.2s ease;
+}
+
+.timeline-track:hover {
+    border-color: #68d391;
+    box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.3), 0 0 0 1px rgba(104, 211, 145, 0.3);
+}
+
+.timeline-track.scrubbing {
+    box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.3), 0 0 0 2px rgba(56, 161, 105, 0.5);
+    border-color: #38a169;
 }
 
 .timeline-time-markers {
@@ -1040,20 +1051,53 @@ export default {
     cursor: grab;
     transform: translateX(-50%);
     left: 0%;
-    z-index: 30;
+    z-index: 40; /* Increased z-index to ensure visibility */
     box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3), 0 0 0 2px rgba(56, 161, 105, 0.2);
     transition: all 0.2s ease;
+    display: block !important;
+    visibility: visible !important;
 }
 
 .timeline-thumb:hover {
     transform: translateX(-50%) scale(1.1);
     box-shadow: 0 6px 12px rgba(0, 0, 0, 0.4), 0 0 0 3px rgba(56, 161, 105, 0.3);
+    z-index: 45;
 }
 
-.timeline-thumb:active {
+.timeline-thumb:active,
+.timeline-thumb.scrubbing {
     cursor: grabbing;
-    transform: translateX(-50%) scale(0.95);
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3), 0 0 0 2px rgba(56, 161, 105, 0.4);
+    transform: translateX(-50%) scale(1.2);
+    box-shadow: 0 8px 16px rgba(0, 0, 0, 0.4), 0 0 0 4px rgba(56, 161, 105, 0.4);
+    border-color: #2f855a;
+    z-index: 50;
+}
+
+.timeline-thumb-time {
+    position: absolute;
+    bottom: 35px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: linear-gradient(135deg, rgba(0, 0, 0, 0.9) 0%, rgba(26, 32, 44, 0.95) 100%);
+    color: #ffffff;
+    padding: 4px 8px;
+    border-radius: 6px;
+    font-size: 11px;
+    font-family: 'Courier New', monospace;
+    font-weight: 600;
+    white-space: nowrap;
+    border: 1px solid #4a5568;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+    opacity: 0;
+    transition: opacity 0.2s ease;
+    pointer-events: none;
+    z-index: 55; /* High z-index for time display */
+    display: block !important;
+}
+
+.timeline-thumb:hover .timeline-thumb-time,
+.timeline-thumb.scrubbing .timeline-thumb-time {
+    opacity: 1;
 }
 
 .infoPanel {
