@@ -48,13 +48,26 @@ npm test
 
 ### Map Visualization
 
-The application now uses OpenLayers for 2D mapping and visualization. This provides:
+The application currently uses OpenLayers for 2D mapping and visualization. This provides:
 - Better performance and smaller bundle size
 - Improved mobile device compatibility
 - Wide variety of free map providers
 - Better web standards compliance
 
 The migration from Cesium to OpenLayers has been completed while maintaining all core functionality.
+
+#### Future 3D Visualization Plans
+
+We are planning to implement Three.js for advanced 3D flight path visualization to address commercial licensing limitations with Cesium. This will enable:
+
+- **3D Flight Path Rendering**: Adjustable camera angles and perspectives for drone flight analysis
+- **Offline 3D Mapping**: Support for predownloaded tiles and terrain data without API dependencies
+- **Obstacle Avoidance Visualization**: 3D rendering of detected objects and sensor data
+- **Georeferenced Media Playback**: Images and videos mapped to 3D coordinates during flight replay
+- **Enhanced Report Generation**: 3D scene exports and visualizations for detailed flight analysis
+- **Commercial Use Freedom**: No licensing restrictions or API limits for professional users
+
+This approach will provide both 2D (OpenLayers) and 3D (Three.js) viewing options while maintaining complete open-source freedom.
 
 # Docker
 
