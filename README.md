@@ -6,7 +6,10 @@
 [UAV Log Viewer](https://github.com/ArduPilot/UAVLogViewer)
 
  This is a Javascript based log viewer for Mavlink telemetry and dataflash logs.
- [Live demo here](http://plot.ardupilot.org).
+ 
+ **🚀 [Live deployment: https://openuaslogviewer.com](https://openuaslogviewer.com)**
+ 
+ [Original ArduPilot demo](http://plot.ardupilot.org)
 
 ### Project Goals:
 * Extend functionality to include parsed DJI flight logs.
