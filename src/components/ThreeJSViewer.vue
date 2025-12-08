@@ -167,6 +167,11 @@ export default {
     this.colorCoder = this.availableColorCoders[this.selectedColorCoder]
     this.initializeTimeline()
     
+    // Load trajectory if it already exists
+    if (this.state.currentTrajectory && this.state.currentTrajectory.length > 0) {
+      this.loadTrajectoryData()
+    }
+    
     // Watch for trajectory changes
     this.$watch('state.currentTrajectory', () => {
       this.loadTrajectoryData()
