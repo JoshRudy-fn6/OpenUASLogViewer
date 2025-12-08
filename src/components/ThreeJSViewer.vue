@@ -420,17 +420,17 @@ export default {
       return currentMode
     },
     
-    getYawAtTime (time) {
-      // Get yaw (compass heading) from ATT or ATTITUDE messages
-      // ATT is dataflash format, ATTITUDE is mavlink format
-      const attMessages = this.state.messages.ATT || this.state.messages.ATTITUDE
+    getGroundCourseAtTime (time) {
+      // Get ground course (direction of travel) from GPS messages
+      // This is more accurate than compass heading for showing direction of movement
+      const gpsMessages = this.state.messages.GPS || this.state.messages.GPS2 || this.state.messages.GLOBAL_POSITION_INT
       
-      if (!attMessages || !attMessages.time_boot_ms) {
+      if (!gpsMessages || !gpsMessages.time_boot_ms) {
         return 0
       }
       
       // Find closest time index
-      const times = attMessages.time_boot_ms
+      const times = gpsMessages.time_boot_ms
       let closestIndex = 0
       let minTimeDiff = Math.abs(times[0] - time)
       
@@ -444,10 +444,22 @@ export default {
         }
       }
       
-      // Get yaw from messages (could be 'Yaw' for dataflash or 'yaw' for mavlink)
-      const yaw = attMessages.Yaw ? attMessages.Yaw[closestIndex] : attMessages.yaw[closestIndex]
+      // Get ground course from messages
+      // GCrs is in degrees (0-360), need to convert to radians
+      let groundCourse = 0
       
-      return yaw || 0
+      if (gpsMessages.GCrs !== undefined) {
+        // Dataflash format: GCrs in degrees
+        groundCourse = gpsMessages.GCrs[closestIndex] * Math.PI / 180
+      } else if (gpsMessages.cog !== undefined) {
+        // Mavlink format: cog in centidegrees (0-35999)
+        groundCourse = (gpsMessages.cog[closestIndex] / 100) * Math.PI / 180
+      } else if (gpsMessages.hdg !== undefined) {
+        // GLOBAL_POSITION_INT: hdg in centidegrees
+        groundCourse = (gpsMessages.hdg[closestIndex] / 100) * Math.PI / 180
+      }
+      
+      return groundCourse
     },
     
     readCompassParameters () {
@@ -647,14 +659,13 @@ export default {
       
       this.vehicleMarker.position.set(x, y, z)
       
-      // Rotate vehicle marker to match compass heading (yaw)
-      const rawYaw = this.getYawAtTime(time)
-      const smoothedYaw = this.getSmoothedYaw(rawYaw)
+      // Rotate vehicle marker to match direction of travel (ground course from GPS)
+      const rawCourse = this.getGroundCourseAtTime(time)
+      const smoothedCourse = this.getSmoothedYaw(rawCourse)
       
-      // Apply compass rotation offset and set marker rotation
-      // Yaw is in radians, pointing north = 0, clockwise positive
-      // Our arrow points in +Z direction after x-rotation, so rotate around Y axis
-      this.vehicleMarker.rotation.z = -(smoothedYaw + this.compassRotation)
+      // Ground course is already in radians, 0 = north, clockwise positive
+      // Our arrow points in +Z direction after x-rotation, so rotate around Z axis
+      this.vehicleMarker.rotation.z = -smoothedCourse
     },
     
     centerOnTrajectory () {
