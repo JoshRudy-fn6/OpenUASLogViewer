@@ -26,6 +26,15 @@
                     </label>
                 </div>
                 <div class="toolbar-section">
+                    <label style="color: white; font-size: 11px; margin-bottom: 3px;">Map Type:</label>
+                    <select class="map-type-select" v-model="satelliteSource" @change="reloadSatelliteImagery">
+                        <option value="2">Satellite (Esri)</option>
+                        <option value="0">Street Map (OSM)</option>
+                        <option value="1">Topographic</option>
+                        <option value="3">Terrain (Stamen)</option>
+                    </select>
+                </div>
+                <div class="toolbar-section">
                     <table class="infoPanel">
                         <tbody>
                             <tr v-bind:key="mode[0]" v-for="mode in colorCodeLegend">
@@ -111,6 +120,8 @@ export default {
       terrainPlane: null,
       terrainTexture: null,
       showTerrain: true,
+      satelliteSource: 2,
+      trajectoryBounds: null,
       timeline: null,
       timelineWidget: null,
       trajectorySegments: []
@@ -549,6 +560,9 @@ export default {
       const minLon = Math.min(...longitudes)
       const maxLon = Math.max(...longitudes)
       
+      // Store bounds for reload
+      this.trajectoryBounds = { minLat, maxLat, minLon, maxLon }
+      
       const centerLat = (minLat + maxLat) / 2
       const centerLon = (minLon + maxLon) / 2
       
@@ -626,8 +640,8 @@ export default {
         (x, y, z) => `https://tiles.stadiamaps.com/tiles/stamen_terrain/${z}/${x}/${y}.png`
       ]
       
-      // Try to load satellite imagery first (Esri), fallback to others
-      let selectedSource = 2 // Start with Esri satellite
+      // Use the user-selected satellite source
+      let selectedSource = this.satelliteSource
       
       const loadTileImage = (url) => {
         return new Promise((resolve, reject) => {
@@ -723,6 +737,38 @@ export default {
     toggleTerrain () {
       if (this.terrainPlane) {
         this.terrainPlane.visible = this.showTerrain
+      }
+    },
+    
+    reloadSatelliteImagery () {
+      // Remove existing terrain plane
+      if (this.terrainPlane) {
+        this.scene.remove(this.terrainPlane)
+        if (this.terrainPlane.geometry) this.terrainPlane.geometry.dispose()
+        if (this.terrainPlane.material) {
+          if (this.terrainPlane.material.map) this.terrainPlane.material.map.dispose()
+          this.terrainPlane.material.dispose()
+        }
+        this.terrainPlane = null
+      }
+      
+      // Recreate terrain with new imagery source
+      if (this.trajectoryBounds) {
+        const { minLat, maxLat, minLon, maxLon } = this.trajectoryBounds
+        const centerLat = (minLat + maxLat) / 2
+        const centerLon = (minLon + maxLon) / 2
+        
+        const metersPerDegreeLat = 111320
+        const metersPerDegreeLon = 111320 * Math.cos(centerLat * Math.PI / 180)
+        
+        const latRange = (maxLat - minLat) * metersPerDegreeLat
+        const lonRange = (maxLon - minLon) * metersPerDegreeLon
+        
+        const planeWidth = Math.max(lonRange, 1000) * 2
+        const planeHeight = Math.max(latRange, 1000) * 2
+        
+        const geometry = new THREE.PlaneGeometry(planeWidth, planeHeight, 32, 32)
+        this.loadSatelliteImagery(minLat, maxLat, minLon, maxLon, planeWidth, planeHeight, geometry)
       }
     },
     
@@ -902,22 +948,36 @@ export default {
     background: linear-gradient(145deg, #3a4556 0%, #2d3748 100%) !important;
     color: #e2e8f0 !important;
     border: 1px solid rgba(255, 255, 255, 0.1);
-    border-radius: 6px;
     padding: 6px 10px;
-    font-size: 14px;
+    border-radius: 4px;
     width: 100%;
+    font-size: 14px;
     cursor: pointer;
     transition: all 0.2s ease;
 }
 
-.color-coding-select option {
-    background-color: #2d3748 !important;
-    color: #ffffff !important;
+.map-type-select {
+    background: linear-gradient(145deg, #3a4556 0%, #2d3748 100%) !important;
+    color: #e2e8f0 !important;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    padding: 6px 10px;
+    border-radius: 4px;
+    width: 100%;
+    font-size: 13px;
+    cursor: pointer;
+    transition: all 0.2s ease;
 }
 
+.map-type-select:hover,
 .color-coding-select:hover {
+    background: linear-gradient(145deg, #4a5566 0%, #3d4758 100%) !important;
     border-color: rgba(255, 255, 255, 0.2);
-    background: linear-gradient(145deg, #4a5568 0%, #3d4758 100%) !important;
+}
+
+.color-coding-select option,
+.map-type-select option {
+    background-color: #2d3748 !important;
+    color: #ffffff !important;
 }
 
 .color-coding-select:focus {
