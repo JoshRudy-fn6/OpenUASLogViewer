@@ -1,6 +1,8 @@
 // OpenLayers Timeline Integration
 // Replaces Cesium's Clock and Timeline system
 
+import { formatRelativeTime } from '../../utils/timeFormatter.js'
+
 export class OpenLayersTimeline {
     constructor(mapViewer, options = {}) {
         this.mapViewer = mapViewer
@@ -590,22 +592,8 @@ export class TimelineWidget {
     }
     
     formatTime(timeMs, includeGPSTime = false) {
-        // Convert from boot time milliseconds to relative time
-        const relativeMs = timeMs - this.timeline.startTime
-        const totalSeconds = Math.floor(relativeMs / 1000)
-        const minutes = Math.floor(totalSeconds / 60)
-        const seconds = totalSeconds % 60
-        
-        let timeString = ''
-        
-        // For longer flights, show hours too
-        if (minutes >= 60) {
-            const hours = Math.floor(minutes / 60)
-            const remainingMinutes = minutes % 60
-            timeString = `${hours}:${remainingMinutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`
-        } else {
-            timeString = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`
-        }
+        // Use centralized time formatter for consistency
+        let timeString = formatRelativeTime(timeMs, this.timeline.startTime)
         
         // Try to add GPS timestamp if available
         if (includeGPSTime && this.timeline.mapViewer?.state?.messages?.GPS) {
