@@ -1,6 +1,11 @@
 <template>
     <div id="wrapper">
-        <div id="toolbar">
+        <div id="toolbar" :class="{ 'toolbar-collapsed': toolbarCollapsed }">
+            <button class="toolbar-collapse-btn" @click="toggleToolbar" :title="toolbarCollapsed ? 'Expand Toolbar' : 'Collapse Toolbar'">
+                <span v-if="!toolbarCollapsed">◀</span>
+                <span v-else>▶</span>
+            </button>
+            <div class="toolbar-content" v-show="!toolbarCollapsed">
             <div class="toolbar-section">
                 <button class="toolbar-btn center-vehicle-btn" @click="centerOnVehicle" title="Center on Vehicle">
                     🎯
@@ -29,6 +34,7 @@
                 @waypoints-visibility-changed="toggleWaypointsVisibility"
                 @vehicle-visibility-changed="toggleVehicleVisibility"
                 @trajectory-style-changed="changeTrajectoryStyle" />
+            </div>
         </div>
         <div id="mapContainer" ref="mapContainer"></div>
         <div id="timelineContainer" ref="timelineContainer"></div>
@@ -75,7 +81,8 @@ export default {
       animationFrame: null,
       currentTimeIndex: 0,
       timeline: null,
-      timelineWidget: null
+      timelineWidget: null,
+      toolbarCollapsed: false
     }
   },
 
@@ -100,10 +107,19 @@ export default {
   },
 
   mounted () {
+    // Restore toolbar state from localStorage
+    const savedState = localStorage.getItem('openLayersToolbarCollapsed')
+    if (savedState !== null) {
+      this.toolbarCollapsed = savedState === 'true'
+    }
     this.initializeMap()
   },
 
   methods: {
+    toggleToolbar () {
+      this.toolbarCollapsed = !this.toolbarCollapsed
+      localStorage.setItem('openLayersToolbarCollapsed', this.toolbarCollapsed)
+    },
     initializeMap () {
       // Create base map layers
       const baseLayer = new TileLayer({
@@ -765,6 +781,37 @@ export default {
     border-radius: 8px;
     border: 1px solid #555;
     backdrop-filter: blur(5px);
+    transition: all 0.3s ease;
+    max-width: 300px;
+}
+
+#toolbar.toolbar-collapsed {
+    padding: 8px;
+    background: rgba(42, 42, 42, 0.85);
+}
+
+.toolbar-collapse-btn {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    background: rgba(60, 60, 60, 0.9);
+    border: 1px solid #666;
+    color: #fff;
+    padding: 4px 8px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 12px;
+    transition: all 0.2s ease;
+    z-index: 1001;
+}
+
+.toolbar-collapse-btn:hover {
+    background: rgba(80, 80, 80, 0.9);
+    border-color: #888;
+}
+
+.toolbar-content {
+    transition: opacity 0.3s ease;
 }
 
 .toolbar-section {
@@ -891,14 +938,19 @@ export default {
 }
 
 .speed-select {
-    background: linear-gradient(135deg, #4a5568 0%, #2d3748 100%);
-    color: white;
+    background: linear-gradient(135deg, #4a5568 0%, #2d3748 100%) !important;
+    color: #ffffff !important;
     border: 1px solid #718096;
     border-radius: 6px;
     padding: 6px 8px;
     font-size: 14px;
     cursor: pointer;
     transition: all 0.2s ease;
+}
+
+.speed-select option {
+    background-color: #2d3748 !important;
+    color: #ffffff !important;
 }
 
 .speed-select:hover {
@@ -1109,12 +1161,23 @@ export default {
 }
 
 .color-coding-select {
-    background: #2a2a2a;
-    color: white;
+    background: #2a2a2a !important;
+    color: #ffffff !important;
     border: 1px solid #555;
     border-radius: 3px;
     padding: 2px;
     margin-bottom: 5px;
+}
+
+.color-coding-select option {
+    background-color: #2a2a2a !important;
+    color: #ffffff !important;
+}
+
+.color-coding-select:focus {
+    background: #333333 !important;
+    border-color: #777;
+    outline: none;
 }
 
 .mode {

@@ -214,9 +214,9 @@ select {
   display: inline;
   border-radius: 5px;
   border: 1px solid rgb(156, 156, 156);
-  background-color: rgb(255, 255, 255);
+  background-color: rgb(255, 255, 255) !important;
   padding: 2px 2.5px;
-  color: #838282;
+  color: #333333 !important;
 }
 
 select:focus {
@@ -225,11 +225,12 @@ select:focus {
 }
 
 select option {
-  background-color: rgb(216, 215, 215);
+  background-color: rgb(255, 255, 255) !important;
+  color: #333333 !important;
 }
 
 select option:hover {
-  background-color: #d47f00;
+  background-color: #ffecd1 !important;
 }
 
 .fa-trash {

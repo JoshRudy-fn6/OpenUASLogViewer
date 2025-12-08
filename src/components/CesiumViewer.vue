@@ -1,6 +1,11 @@
 <template>
     <div id="wrapper">
-        <div id="toolbar">
+        <div id="toolbar" :class="{ 'toolbar-collapsed': toolbarCollapsed }">
+            <button class="toolbar-collapse-btn" @click="toggleToolbar" :title="toolbarCollapsed ? 'Expand Toolbar' : 'Collapse Toolbar'">
+                <span v-if="!toolbarCollapsed">◀</span>
+                <span v-else>▶</span>
+            </button>
+            <div class="toolbar-content" v-show="!toolbarCollapsed">
           <table class="infoPanel">
                 <select class="color-coding-select" v-model="selectedColorCoder" v-on:change="updateColor">
                     <option :key="key"  :value="key" v-for="(value, key) in useableColorCoders">
@@ -14,6 +19,7 @@
               </tbody>
             </table>
             <CesiumSettingsWidget />
+            </div>
         </div>
         <div id="cesiumContainer"></div>
     </div>
@@ -116,7 +122,8 @@ export default {
             startTimeMs: 0,
             lastEmitted: 0,
             colorCoder: null,
-            selectedColorCoder: 'Mode'
+            selectedColorCoder: 'Mode',
+            toolbarCollapsed: false
         }
     },
     components: {
@@ -140,10 +147,19 @@ export default {
         this.$eventHub.$off('hoveredTime')
     },
     mounted () {
+        // Restore toolbar state from localStorage
+        const savedState = localStorage.getItem('cesiumToolbarCollapsed')
+        if (savedState !== null) {
+            this.toolbarCollapsed = savedState === 'true'
+        }
         // create eniro, statkart, and openseamap providers
         this.asyncSetup()
     },
     methods: {
+        toggleToolbar () {
+            this.toolbarCollapsed = !this.toolbarCollapsed
+            localStorage.setItem('cesiumToolbarCollapsed', this.toolbarCollapsed)
+        },
         async asyncSetup () {
             if (this.viewer == null) {
                 if (this.state.isOnline) {
@@ -1593,6 +1609,37 @@ export default {
         z-index: 1;
         height: fit-content;
         display: flex;
+        transition: all 0.3s ease;
+    }
+
+    #toolbar.toolbar-collapsed {
+        padding: 8px;
+        background: rgba(40, 40, 40, 0.6);
+        border-radius: 5px;
+    }
+
+    .toolbar-collapse-btn {
+        position: absolute;
+        top: 8px;
+        right: 8px;
+        background: rgba(60, 60, 60, 0.9);
+        border: 1px solid #666;
+        color: #fff;
+        padding: 4px 8px;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 12px;
+        transition: all 0.2s ease;
+        z-index: 1001;
+    }
+
+    .toolbar-collapse-btn:hover {
+        background: rgba(80, 80, 80, 0.9);
+        border-color: #888;
+    }
+
+    .toolbar-content {
+        transition: opacity 0.3s ease;
     }
 
     /* INFO PANEL */
@@ -1750,5 +1797,21 @@ export default {
 
     .color-coding-select {
       margin: 4px;
+      background: #2a2a2a !important;
+      color: #ffffff !important;
+      border: 1px solid #555;
+      border-radius: 3px;
+      padding: 2px;
+    }
+
+    .color-coding-select option {
+      background-color: #2a2a2a !important;
+      color: #ffffff !important;
+    }
+
+    .color-coding-select:focus {
+      background: #333333 !important;
+      border-color: #777;
+      outline: none;
     }
 </style>

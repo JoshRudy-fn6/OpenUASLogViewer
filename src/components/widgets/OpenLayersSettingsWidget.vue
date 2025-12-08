@@ -100,13 +100,24 @@ export default {
 }
 
 .setting-select {
-    background: #2a2a2a;
-    color: white;
+    background: #2a2a2a !important;
+    color: #ffffff !important;
     border: 1px solid #555;
     border-radius: 3px;
     padding: 2px 4px;
     font-size: 11px;
     max-width: 100px;
+}
+
+.setting-select option {
+    background-color: #2a2a2a !important;
+    color: #ffffff !important;
+}
+
+.setting-select:focus {
+    background: #333333 !important;
+    border-color: #777;
+    outline: none;
 }
 
 input[type="checkbox"] {
