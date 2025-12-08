@@ -124,7 +124,10 @@ export default {
       trajectoryBounds: null,
       timeline: null,
       timelineWidget: null,
-      trajectorySegments: []
+      trajectorySegments: [],
+      yawSmoothingBuffer: [],
+      yawSmoothingSize: 5,
+      compassRotation: 0
     }
   },
   
@@ -162,6 +165,9 @@ export default {
     if (savedState !== null) {
       this.toolbarCollapsed = savedState === 'true'
     }
+    
+    // Read compass rotation from parameters
+    this.readCompassParameters()
     
     this.initThreeJS()
     this.colorCoder = this.availableColorCoders[this.selectedColorCoder]
@@ -414,6 +420,112 @@ export default {
       return currentMode
     },
     
+    getYawAtTime (time) {
+      // Get yaw (compass heading) from ATT or ATTITUDE messages
+      // ATT is dataflash format, ATTITUDE is mavlink format
+      const attMessages = this.state.messages.ATT || this.state.messages.ATTITUDE
+      
+      if (!attMessages || !attMessages.time_boot_ms) {
+        return 0
+      }
+      
+      // Find closest time index
+      const times = attMessages.time_boot_ms
+      let closestIndex = 0
+      let minTimeDiff = Math.abs(times[0] - time)
+      
+      for (let i = 1; i < times.length; i++) {
+        const timeDiff = Math.abs(times[i] - time)
+        if (timeDiff < minTimeDiff) {
+          minTimeDiff = timeDiff
+          closestIndex = i
+        } else {
+          break // Times are sorted, so we can break early
+        }
+      }
+      
+      // Get yaw from messages (could be 'Yaw' for dataflash or 'yaw' for mavlink)
+      const yaw = attMessages.Yaw ? attMessages.Yaw[closestIndex] : attMessages.yaw[closestIndex]
+      
+      return yaw || 0
+    },
+    
+    readCompassParameters () {
+      // Read compass rotation offset from parameters
+      // COMPASS_ORIENT can be:
+      // 0 = None, 1 = Yaw45, 2 = Yaw90, 3 = Yaw135, 4 = Yaw180, 5 = Yaw225, 6 = Yaw270, 7 = Yaw315
+      // 8+ are pitch/roll combinations
+      
+      if (!window.params) {
+        return
+      }
+      
+      // Try to get primary compass index (defaults to 0)
+      let primaryCompass = 0
+      if ('COMPASS_PRIMARY' in window.params) {
+        primaryCompass = window.params.COMPASS_PRIMARY
+      } else if ('COMPASS_USE' in window.params) {
+        primaryCompass = window.params.COMPASS_USE
+      }
+      
+      // Get orientation for the primary compass
+      let orientParam = 'COMPASS_ORIENT'
+      if (primaryCompass > 0) {
+        // Try new format first (COMPASS2_ORIENT, COMPASS3_ORIENT)
+        orientParam = `COMPASS${primaryCompass + 1}_ORIENT`
+        if (!(orientParam in window.params)) {
+          // Try old format (COMPASS_ORIENT2, COMPASS_ORIENT3)
+          orientParam = `COMPASS_ORIENT${primaryCompass + 1}`
+        }
+      }
+      
+      if (orientParam in window.params) {
+        const orientation = window.params[orientParam]
+        
+        // Convert orientation codes to rotation angles (radians)
+        const orientationMap = {
+          0: 0,                    // None
+          1: Math.PI / 4,         // Yaw45
+          2: Math.PI / 2,         // Yaw90
+          3: 3 * Math.PI / 4,     // Yaw135
+          4: Math.PI,             // Yaw180
+          5: 5 * Math.PI / 4,     // Yaw225
+          6: 3 * Math.PI / 2,     // Yaw270
+          7: 7 * Math.PI / 4      // Yaw315
+        }
+        
+        if (orientation in orientationMap) {
+          this.compassRotation = orientationMap[orientation]
+          console.log(`Using compass rotation offset: ${(orientation * 45)} degrees`)
+        }
+      }
+    },
+    
+    getSmoothedYaw (yaw) {
+      // Add current yaw to smoothing buffer
+      this.yawSmoothingBuffer.push(yaw)
+      
+      // Keep buffer size limited
+      if (this.yawSmoothingBuffer.length > this.yawSmoothingSize) {
+        this.yawSmoothingBuffer.shift()
+      }
+      
+      // Handle angle wrapping for averaging (deal with 0/2π boundary)
+      // Convert to unit vectors, average, then convert back to angle
+      let sumSin = 0
+      let sumCos = 0
+      
+      for (const angle of this.yawSmoothingBuffer) {
+        sumSin += Math.sin(angle)
+        sumCos += Math.cos(angle)
+      }
+      
+      const avgSin = sumSin / this.yawSmoothingBuffer.length
+      const avgCos = sumCos / this.yawSmoothingBuffer.length
+      
+      return Math.atan2(avgSin, avgCos)
+    },
+    
     getModeColor (modeName) {
       const modeIndex = this.setOfModes.indexOf(modeName)
       
@@ -430,14 +542,49 @@ export default {
       }
       
       const firstPoint = this.state.currentTrajectory[0]
-      const geometry = new THREE.SphereGeometry(5, 16, 16)
+      
+      // Create arrow shape for vehicle marker
+      // Arrow points in +Z direction (north), will be rotated by yaw
+      const arrowShape = new THREE.Shape()
+      
+      // Arrow dimensions (smaller than sphere)
+      const length = 8
+      const width = 4
+      const headLength = 3
+      const headWidth = 6
+      
+      // Draw arrow pointing up (north/+Z)
+      arrowShape.moveTo(0, length / 2) // tip
+      arrowShape.lineTo(-headWidth / 2, length / 2 - headLength) // left head
+      arrowShape.lineTo(-width / 2, length / 2 - headLength) // left body
+      arrowShape.lineTo(-width / 2, -length / 2) // left tail
+      arrowShape.lineTo(width / 2, -length / 2) // right tail
+      arrowShape.lineTo(width / 2, length / 2 - headLength) // right body
+      arrowShape.lineTo(headWidth / 2, length / 2 - headLength) // right head
+      arrowShape.lineTo(0, length / 2) // back to tip
+      
+      const extrudeSettings = {
+        depth: 2,
+        bevelEnabled: true,
+        bevelThickness: 0.3,
+        bevelSize: 0.3,
+        bevelSegments: 2
+      }
+      
+      const geometry = new THREE.ExtrudeGeometry(arrowShape, extrudeSettings)
       const material = new THREE.MeshStandardMaterial({
         color: 0xff0000,
         emissive: 0xff0000,
-        emissiveIntensity: 0.5
+        emissiveIntensity: 0.5,
+        metalness: 0.3,
+        roughness: 0.7
       })
       
       this.vehicleMarker = new THREE.Mesh(geometry, material)
+      
+      // Rotate arrow to lie flat (parallel to ground)
+      // and point in correct direction
+      this.vehicleMarker.rotation.x = -Math.PI / 2
       
       // Position at first trajectory point
       const trajectory = this.state.currentTrajectory
@@ -499,6 +646,15 @@ export default {
       const y = point[2] - minAlt
       
       this.vehicleMarker.position.set(x, y, z)
+      
+      // Rotate vehicle marker to match compass heading (yaw)
+      const rawYaw = this.getYawAtTime(time)
+      const smoothedYaw = this.getSmoothedYaw(rawYaw)
+      
+      // Apply compass rotation offset and set marker rotation
+      // Yaw is in radians, pointing north = 0, clockwise positive
+      // Our arrow points in +Z direction after x-rotation, so rotate around Y axis
+      this.vehicleMarker.rotation.z = -(smoothedYaw + this.compassRotation)
     },
     
     centerOnTrajectory () {
