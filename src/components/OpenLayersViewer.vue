@@ -701,35 +701,35 @@ export default {
     },
 
     getModeColor (modeName) {
-      // Define colors for common flight modes
-      const modeColors = {
-        'MANUAL': '#ff4444',      // Red
-        'STABILIZE': '#ff8800',   // Orange  
-        'ALTHOLD': '#ffff00',     // Yellow
-        'AUTO': '#44ff44',        // Green
-        'GUIDED': '#4444ff',      // Blue
-        'LOITER': '#ff44ff',      // Magenta
-        'RTL': '#44ffff',         // Cyan
-        'CIRCLE': '#8844ff',      // Purple
-        'LAND': '#ff8844',        // Orange-red
-        'BRAKE': '#888888',       // Gray
-        'THROW': '#ffaa44',       // Light orange
-        'AVOID_ADSB': '#aa44ff',  // Light purple
-        'GUIDED_NOGPS': '#44aaff', // Light blue
-        'SMART_RTL': '#aaff44',   // Light green
-        'FLOWHOLD': '#ffaa88',    // Light orange-pink
-        'FOLLOW': '#88aaff',      // Light blue-purple
-        'ZIGZAG': '#aaff88',      // Light green-yellow
-        'SYSTEMID': '#ff88aa',    // Light red-purple
-        'AUTOROTATE': '#88ffaa',  // Light cyan-green
-        'AUTO_RTL': '#aa88ff'     // Light purple-blue
+      // Use the same color scheme as Plotly for consistency
+      // state.cssColors is generated from the colormap library with 'hsv' colormap
+      
+      // Get the index of this mode in the set of all modes
+      const modeIndex = this.setOfModes.indexOf(modeName)
+      
+      if (modeIndex >= 0 && this.state.cssColors && this.state.cssColors[modeIndex]) {
+        return this.state.cssColors[modeIndex]
       }
       
-      return modeColors[modeName] || '#666666' // Default gray for unknown modes
+      // Fallback to default gray if mode or color not found
+      return '#666666'
     }
   },
 
   computed: {
+    setOfModes () {
+      // Calculate the set of unique flight modes
+      const set = []
+      if (this.state.flightModeChanges) {
+        for (const mode of this.state.flightModeChanges) {
+          if (!set.includes(mode[1])) {
+            set.push(mode[1])
+          }
+        }
+      }
+      return set
+    },
+    
     availableColorCoders () {
       return {
         'Mode': new ColorCoderMode(this.state),
