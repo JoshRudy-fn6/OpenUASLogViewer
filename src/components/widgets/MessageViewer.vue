@@ -30,6 +30,7 @@
 <script>
 import { store } from '../Globals.js'
 import { baseWidget } from './baseWidget'
+import { formatBootTime } from '../../utils/timeFormatter.js'
 
 export default {
     name: 'MessageViewer',
@@ -71,15 +72,8 @@ export default {
     },
     methods: {
         timeFormatter (milliseconds) {
-            let outputString = ''
-            const seconds = (milliseconds / 1000) % 60
-            let minutes = Math.floor((milliseconds / 1000) / 60)
-            const hours = Math.floor(minutes / 60)
-            minutes = minutes % 60
-            outputString = seconds.toFixed(1).padStart(4, '0')
-            outputString = minutes.toFixed(0).padStart(2, '0') + ':' + outputString
-            outputString = hours.toFixed(0).padStart(2, '0') + ':' + outputString
-            return outputString
+            // Use centralized time formatter for consistency
+            return formatBootTime(milliseconds)
         },
         setTime (time) {
             console.log('MessageViewer setTime called with:', time, 'current cursorTime:', this.cursorTime)

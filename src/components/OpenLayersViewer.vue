@@ -1,6 +1,11 @@
 <template>
     <div id="wrapper">
-        <div id="toolbar">
+        <div id="toolbar" :class="{ 'toolbar-collapsed': toolbarCollapsed }">
+            <button class="toolbar-collapse-btn" @click="toggleToolbar" :title="toolbarCollapsed ? 'Expand Toolbar' : 'Collapse Toolbar'">
+                <span v-if="!toolbarCollapsed">◀</span>
+                <span v-else>▶</span>
+            </button>
+            <div class="toolbar-content" v-show="!toolbarCollapsed">
             <div class="toolbar-section">
                 <button class="toolbar-btn center-vehicle-btn" @click="centerOnVehicle" title="Center on Vehicle">
                     🎯
@@ -29,6 +34,7 @@
                 @waypoints-visibility-changed="toggleWaypointsVisibility"
                 @vehicle-visibility-changed="toggleVehicleVisibility"
                 @trajectory-style-changed="changeTrajectoryStyle" />
+            </div>
         </div>
         <div id="mapContainer" ref="mapContainer"></div>
         <div id="timelineContainer" ref="timelineContainer"></div>
@@ -75,7 +81,8 @@ export default {
       animationFrame: null,
       currentTimeIndex: 0,
       timeline: null,
-      timelineWidget: null
+      timelineWidget: null,
+      toolbarCollapsed: false
     }
   },
 
@@ -100,10 +107,19 @@ export default {
   },
 
   mounted () {
+    // Restore toolbar state from localStorage
+    const savedState = localStorage.getItem('openLayersToolbarCollapsed')
+    if (savedState !== null) {
+      this.toolbarCollapsed = savedState === 'true'
+    }
     this.initializeMap()
   },
 
   methods: {
+    toggleToolbar () {
+      this.toolbarCollapsed = !this.toolbarCollapsed
+      localStorage.setItem('openLayersToolbarCollapsed', this.toolbarCollapsed)
+    },
     initializeMap () {
       // Create base map layers
       const baseLayer = new TileLayer({
@@ -685,35 +701,35 @@ export default {
     },
 
     getModeColor (modeName) {
-      // Define colors for common flight modes
-      const modeColors = {
-        'MANUAL': '#ff4444',      // Red
-        'STABILIZE': '#ff8800',   // Orange  
-        'ALTHOLD': '#ffff00',     // Yellow
-        'AUTO': '#44ff44',        // Green
-        'GUIDED': '#4444ff',      // Blue
-        'LOITER': '#ff44ff',      // Magenta
-        'RTL': '#44ffff',         // Cyan
-        'CIRCLE': '#8844ff',      // Purple
-        'LAND': '#ff8844',        // Orange-red
-        'BRAKE': '#888888',       // Gray
-        'THROW': '#ffaa44',       // Light orange
-        'AVOID_ADSB': '#aa44ff',  // Light purple
-        'GUIDED_NOGPS': '#44aaff', // Light blue
-        'SMART_RTL': '#aaff44',   // Light green
-        'FLOWHOLD': '#ffaa88',    // Light orange-pink
-        'FOLLOW': '#88aaff',      // Light blue-purple
-        'ZIGZAG': '#aaff88',      // Light green-yellow
-        'SYSTEMID': '#ff88aa',    // Light red-purple
-        'AUTOROTATE': '#88ffaa',  // Light cyan-green
-        'AUTO_RTL': '#aa88ff'     // Light purple-blue
+      // Use the same color scheme as Plotly for consistency
+      // state.cssColors is generated from the colormap library with 'hsv' colormap
+      
+      // Get the index of this mode in the set of all modes
+      const modeIndex = this.setOfModes.indexOf(modeName)
+      
+      if (modeIndex >= 0 && this.state.cssColors && this.state.cssColors[modeIndex]) {
+        return this.state.cssColors[modeIndex]
       }
       
-      return modeColors[modeName] || '#666666' // Default gray for unknown modes
+      // Fallback to default gray if mode or color not found
+      return '#666666'
     }
   },
 
   computed: {
+    setOfModes () {
+      // Calculate the set of unique flight modes
+      const set = []
+      if (this.state.flightModeChanges) {
+        for (const mode of this.state.flightModeChanges) {
+          if (!set.includes(mode[1])) {
+            set.push(mode[1])
+          }
+        }
+      }
+      return set
+    },
+    
     availableColorCoders () {
       return {
         'Mode': new ColorCoderMode(this.state),
@@ -765,6 +781,37 @@ export default {
     border-radius: 8px;
     border: 1px solid #555;
     backdrop-filter: blur(5px);
+    transition: all 0.3s ease;
+    max-width: 300px;
+}
+
+#toolbar.toolbar-collapsed {
+    padding: 8px;
+    background: rgba(42, 42, 42, 0.85);
+}
+
+.toolbar-collapse-btn {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    background: rgba(60, 60, 60, 0.9);
+    border: 1px solid #666;
+    color: #fff;
+    padding: 4px 8px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 12px;
+    transition: all 0.2s ease;
+    z-index: 1001;
+}
+
+.toolbar-collapse-btn:hover {
+    background: rgba(80, 80, 80, 0.9);
+    border-color: #888;
+}
+
+.toolbar-content {
+    transition: opacity 0.3s ease;
 }
 
 .toolbar-section {
@@ -803,18 +850,20 @@ export default {
     bottom: 0;
     left: 0;
     right: 0;
-    height: 120px; /* Increased height for better controls and time markers */
-    background: linear-gradient(180deg, rgba(42, 42, 42, 0.95) 0%, rgba(32, 32, 32, 0.98) 100%);
-    border-top: 2px solid #555;
-    box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.3);
+    height: 130px;
+    background: linear-gradient(180deg, rgba(30, 33, 38, 0.98) 0%, rgba(20, 22, 25, 0.99) 100%);
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+    box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.5), 0 -1px 0 rgba(255, 255, 255, 0.05);
+    backdrop-filter: blur(10px);
 }
 
-/* Enhanced Timeline Widget Styles */
+/* Modern Timeline Widget Styles */
 .timeline-widget {
     display: flex;
     flex-direction: column;
     height: 100%;
-    padding: 12px;
+    padding: 14px 20px;
+    gap: 10px;
 }
 
 .timeline-gps-info {
@@ -824,118 +873,167 @@ export default {
 }
 
 .gps-timestamp {
-    font-size: 12px;
-    font-family: 'Courier New', monospace;
-    color: #fff;
-    background: linear-gradient(135deg, rgba(0, 100, 200, 0.8) 0%, rgba(0, 80, 160, 0.9) 100%);
-    padding: 4px 10px;
-    border-radius: 6px;
-    border: 1px solid #0066cc;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+    font-size: 13px;
+    font-family: 'Segoe UI', 'Roboto', 'Arial', sans-serif;
+    font-weight: 500;
+    letter-spacing: 0.5px;
+    color: #ffffff;
+    background: linear-gradient(135deg, #2196F3 0%, #1976D2 100%);
+    padding: 6px 14px;
+    border-radius: 20px;
+    border: none;
+    box-shadow: 0 2px 8px rgba(33, 150, 243, 0.3), 0 0 0 1px rgba(255, 255, 255, 0.1) inset;
+    transition: all 0.3s ease;
+}
+
+.gps-timestamp:hover {
+    box-shadow: 0 4px 12px rgba(33, 150, 243, 0.4), 0 0 0 1px rgba(255, 255, 255, 0.15) inset;
+    transform: translateY(-1px);
 }
 
 .timeline-controls {
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: 12px;
-    margin-bottom: 12px;
+    gap: 10px;
+    margin-bottom: 8px;
 }
 
 .timeline-btn {
-    background: linear-gradient(135deg, #4a5568 0%, #2d3748 100%);
-    color: white;
-    border: 1px solid #718096;
-    border-radius: 6px;
-    padding: 8px 12px;
+    background: linear-gradient(145deg, #3a4556 0%, #2d3748 100%);
+    color: #e2e8f0;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 8px;
+    padding: 10px 14px;
     cursor: pointer;
     font-size: 16px;
-    transition: all 0.2s ease;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
-    min-width: 40px;
+    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3), 0 0 0 1px rgba(255, 255, 255, 0.05) inset;
+    min-width: 44px;
+    position: relative;
+    overflow: hidden;
+}
+
+.timeline-btn::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(135deg, rgba(255, 255, 255, 0.1) 0%, transparent 100%);
+    opacity: 0;
+    transition: opacity 0.3s ease;
 }
 
 .timeline-btn:hover {
-    background: linear-gradient(135deg, #5a6578 0%, #3d4758 100%);
-    border-color: #a0aec0;
-    transform: translateY(-1px);
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+    background: linear-gradient(145deg, #4a5568 0%, #3d4758 100%);
+    border-color: rgba(255, 255, 255, 0.15);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(255, 255, 255, 0.08) inset;
+    color: #ffffff;
+}
+
+.timeline-btn:hover::before {
+    opacity: 1;
 }
 
 .timeline-btn:active {
     transform: translateY(0);
-    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3), 0 0 0 1px rgba(255, 255, 255, 0.05) inset;
+    transition: all 0.1s ease;
 }
 
 .play-pause-btn {
-    background: linear-gradient(135deg, #38a169 0%, #2f855a 100%);
+    background: linear-gradient(145deg, #10b981 0%, #059669 100%);
+    border-color: rgba(16, 185, 129, 0.3);
     font-size: 18px;
-    min-width: 50px;
+    min-width: 52px;
+    box-shadow: 0 2px 8px rgba(16, 185, 129, 0.3), 0 0 0 1px rgba(255, 255, 255, 0.08) inset;
 }
 
 .play-pause-btn:hover {
-    background: linear-gradient(135deg, #48bb78 0%, #38a169 100%);
+    background: linear-gradient(145deg, #34d399 0%, #10b981 100%);
+    box-shadow: 0 4px 14px rgba(16, 185, 129, 0.4), 0 0 0 1px rgba(255, 255, 255, 0.1) inset;
+    border-color: rgba(16, 185, 129, 0.4);
 }
 
 .time-display {
-    color: #e2e8f0;
-    font-family: 'Courier New', monospace;
+    color: #ffffff;
+    font-family: 'Segoe UI', 'Roboto', monospace;
     font-size: 16px;
-    font-weight: bold;
-    min-width: 80px;
+    font-weight: 600;
+    letter-spacing: 1px;
+    min-width: 90px;
     text-align: center;
-    background: rgba(0, 0, 0, 0.3);
-    padding: 6px 10px;
-    border-radius: 4px;
-    border: 1px solid #4a5568;
+    background: linear-gradient(145deg, rgba(0, 0, 0, 0.4) 0%, rgba(0, 0, 0, 0.5) 100%);
+    padding: 8px 14px;
+    border-radius: 8px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3), 0 0 0 1px rgba(255, 255, 255, 0.05) inset;
 }
 
 .speed-select {
-    background: linear-gradient(135deg, #4a5568 0%, #2d3748 100%);
-    color: white;
-    border: 1px solid #718096;
-    border-radius: 6px;
-    padding: 6px 8px;
-    font-size: 14px;
+    background: linear-gradient(145deg, #3a4556 0%, #2d3748 100%) !important;
+    color: #e2e8f0 !important;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 8px;
+    padding: 8px 12px;
+    font-size: 13px;
+    font-weight: 500;
     cursor: pointer;
-    transition: all 0.2s ease;
+    transition: all 0.25s ease;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3), 0 0 0 1px rgba(255, 255, 255, 0.05) inset;
+}
+
+.speed-select option {
+    background-color: #2d3748 !important;
+    color: #ffffff !important;
+    padding: 8px;
 }
 
 .speed-select:hover {
-    border-color: #a0aec0;
-    background: linear-gradient(135deg, #5a6578 0%, #3d4758 100%);
+    border-color: rgba(255, 255, 255, 0.15);
+    background: linear-gradient(145deg, #4a5568 0%, #3d4758 100%) !important;
+    box-shadow: 0 3px 8px rgba(0, 0, 0, 0.35), 0 0 0 1px rgba(255, 255, 255, 0.08) inset;
+}
+
+.speed-select:focus {
+    outline: none;
+    border-color: #2196F3;
+    box-shadow: 0 0 0 3px rgba(33, 150, 243, 0.2), 0 2px 6px rgba(0, 0, 0, 0.3);
 }
 
 .timeline-track {
     position: relative;
-    height: 24px;
-    background: linear-gradient(180deg, #2d3748 0%, #1a202c 100%);
-    border-radius: 12px;
+    height: 28px;
+    background: linear-gradient(180deg, rgba(20, 25, 35, 0.9) 0%, rgba(15, 20, 28, 0.95) 100%);
+    border-radius: 14px;
     cursor: pointer;
     flex: 1;
-    margin-top: 20px;
-    border: 2px solid #4a5568;
-    box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.3);
+    margin-top: 4px;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    box-shadow: inset 0 2px 8px rgba(0, 0, 0, 0.5), 0 1px 0 rgba(255, 255, 255, 0.05);
     overflow: hidden;
-    transition: all 0.2s ease;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .timeline-track:hover {
-    border-color: #68d391;
-    box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.3), 0 0 0 1px rgba(104, 211, 145, 0.3);
+    border-color: rgba(33, 150, 243, 0.3);
+    box-shadow: inset 0 2px 8px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(33, 150, 243, 0.2), 0 1px 0 rgba(255, 255, 255, 0.05);
 }
 
 .timeline-track.scrubbing {
-    box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.3), 0 0 0 2px rgba(56, 161, 105, 0.5);
-    border-color: #38a169;
+    box-shadow: inset 0 2px 8px rgba(0, 0, 0, 0.5), 0 0 0 2px rgba(33, 150, 243, 0.4);
+    border-color: rgba(33, 150, 243, 0.5);
 }
 
 .timeline-time-markers {
     position: absolute;
-    top: -25px;
+    top: -28px;
     left: 0;
     right: 0;
-    height: 25px;
+    height: 28px;
     pointer-events: none;
     z-index: 50;
     overflow: visible;
@@ -943,18 +1041,17 @@ export default {
 
 .time-marker {
     position: absolute;
-    font-size: 10px;
+    font-size: 11px;
+    font-weight: 500;
     color: #e2e8f0;
     white-space: nowrap;
     user-select: none;
     z-index: 55;
-    background: linear-gradient(135deg, rgba(0, 0, 0, 0.8) 0%, rgba(26, 32, 44, 0.9) 100%);
-    padding: 2px 6px;
-    border-radius: 4px;
-    border: 1px solid #4a5568;
-    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8);
-    font-weight: 500;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+    background: linear-gradient(145deg, rgba(0, 0, 0, 0.85) 0%, rgba(26, 32, 44, 0.9) 100%);
+    padding: 3px 8px;
+    border-radius: 6px;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4);
 }
 
 .time-marker.major-marker {
@@ -996,37 +1093,37 @@ export default {
     opacity: 0.6;
 }
 
-.timeline-background {
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background: #333;
-    border-radius: 10px;
-}
-
 .timeline-mode-segments {
     position: absolute;
     top: 0;
     left: 0;
     right: 0;
     bottom: 0;
-    border-radius: 12px;
+    border-radius: 14px;
     overflow: hidden;
     z-index: 10;
 }
 
 .mode-segment {
-    transition: all 0.3s ease;
-    box-shadow: inset 0 1px 2px rgba(255, 255, 255, 0.2);
-    border: 1px solid rgba(255, 255, 255, 0.1);
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: inset 0 1px 3px rgba(255, 255, 255, 0.15), inset 0 -1px 3px rgba(0, 0, 0, 0.2);
+    position: relative;
+}
+
+.mode-segment::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.1) 0%, transparent 50%, rgba(0, 0, 0, 0.1) 100%);
+    pointer-events: none;
 }
 
 .mode-segment:hover {
-    opacity: 0.95 !important;
-    transform: scaleY(1.1);
-    box-shadow: inset 0 1px 2px rgba(255, 255, 255, 0.3), 0 2px 4px rgba(0, 0, 0, 0.2);
+    filter: brightness(1.15);
+    box-shadow: inset 0 1px 3px rgba(255, 255, 255, 0.25), inset 0 -1px 3px rgba(0, 0, 0, 0.15), 0 2px 6px rgba(0, 0, 0, 0.3);
     z-index: 15;
 }
 
@@ -1035,72 +1132,99 @@ export default {
     top: 0;
     left: 0;
     bottom: 0;
-    background: linear-gradient(90deg, #38a169 0%, #48bb78 50%, #68d391 100%);
-    border-radius: 12px;
+    background: linear-gradient(90deg, #2196F3 0%, #42A5F5 50%, #64B5F6 100%);
+    border-radius: 14px;
     width: 0%;
     transition: width 0.1s ease;
     z-index: 20;
-    box-shadow: 0 0 8px rgba(56, 161, 105, 0.4);
+    box-shadow: 0 0 12px rgba(33, 150, 243, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.3);
+    position: relative;
+}
+
+.timeline-progress::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 50%;
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.2) 0%, transparent 100%);
+    border-radius: 14px 14px 0 0;
 }
 
 .timeline-thumb {
     position: absolute;
-    top: -4px;
-    width: 28px;
-    height: 28px;
-    background: linear-gradient(135deg, #ffffff 0%, #f7fafc 100%);
-    border: 3px solid #38a169;
+    top: 50%;
+    width: 20px;
+    height: 20px;
+    background: radial-gradient(circle, #ffffff 0%, #e3f2fd 100%);
+    border: 3px solid #2196F3;
     border-radius: 50%;
     cursor: grab;
-    transform: translateX(-50%);
+    transform: translate(-50%, -50%);
     left: 0%;
-    z-index: 40; /* Increased z-index to ensure visibility */
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3), 0 0 0 2px rgba(56, 161, 105, 0.2);
-    transition: all 0.2s ease;
+    z-index: 40;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4), 0 0 0 2px rgba(33, 150, 243, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.8);
+    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
     display: block !important;
     visibility: visible !important;
 }
 
+.timeline-thumb::before {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 6px;
+    height: 6px;
+    background: #2196F3;
+    border-radius: 50%;
+    transform: translate(-50%, -50%);
+}
+
 .timeline-thumb:hover {
-    transform: translateX(-50%) scale(1.1);
-    box-shadow: 0 6px 12px rgba(0, 0, 0, 0.4), 0 0 0 3px rgba(56, 161, 105, 0.3);
+    transform: translate(-50%, -50%) scale(1.3);
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5), 0 0 0 3px rgba(33, 150, 243, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.9);
+    border-color: #1976D2;
     z-index: 45;
 }
 
 .timeline-thumb:active,
 .timeline-thumb.scrubbing {
     cursor: grabbing;
-    transform: translateX(-50%) scale(1.2);
-    box-shadow: 0 8px 16px rgba(0, 0, 0, 0.4), 0 0 0 4px rgba(56, 161, 105, 0.4);
-    border-color: #2f855a;
+    transform: translate(-50%, -50%) scale(1.5);
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.6), 0 0 0 4px rgba(33, 150, 243, 0.5), inset 0 1px 0 rgba(255, 255, 255, 1);
+    border-color: #1565C0;
     z-index: 50;
 }
 
 .timeline-thumb-time {
     position: absolute;
-    bottom: 35px;
+    bottom: 28px;
     left: 50%;
     transform: translateX(-50%);
-    background: linear-gradient(135deg, rgba(0, 0, 0, 0.9) 0%, rgba(26, 32, 44, 0.95) 100%);
+    background: linear-gradient(145deg, rgba(0, 0, 0, 0.95) 0%, rgba(33, 150, 243, 0.15) 100%), #1a1f2e;
     color: #ffffff;
-    padding: 4px 8px;
-    border-radius: 6px;
-    font-size: 11px;
-    font-family: 'Courier New', monospace;
+    padding: 6px 12px;
+    border-radius: 8px;
+    font-size: 12px;
+    font-family: 'Segoe UI', 'Roboto', monospace;
     font-weight: 600;
+    letter-spacing: 0.5px;
     white-space: nowrap;
-    border: 1px solid #4a5568;
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+    border: 1px solid rgba(33, 150, 243, 0.3);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.1) inset;
     opacity: 0;
-    transition: opacity 0.2s ease;
+    transition: opacity 0.25s ease, transform 0.25s ease;
     pointer-events: none;
-    z-index: 55; /* High z-index for time display */
+    z-index: 55;
     display: block !important;
 }
 
 .timeline-thumb:hover .timeline-thumb-time,
 .timeline-thumb.scrubbing .timeline-thumb-time {
     opacity: 1;
+    transform: translateX(-50%) translateY(-4px);
 }
 
 .infoPanel {
@@ -1109,12 +1233,23 @@ export default {
 }
 
 .color-coding-select {
-    background: #2a2a2a;
-    color: white;
+    background: #2a2a2a !important;
+    color: #ffffff !important;
     border: 1px solid #555;
     border-radius: 3px;
     padding: 2px;
     margin-bottom: 5px;
+}
+
+.color-coding-select option {
+    background-color: #2a2a2a !important;
+    color: #ffffff !important;
+}
+
+.color-coding-select:focus {
+    background: #333333 !important;
+    border-color: #777;
+    outline: none;
 }
 
 .mode {

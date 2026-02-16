@@ -31,8 +31,26 @@
                 </div>
                 <div class="row" v-bind:class="[state.plotOn ? 'h-50' : 'h-100']"
                      v-if="state.mapAvailable && mapOk && state.showMap">
-                    <div class="col-12 noPadding">
-                        <OpenLayersViewer ref="openLayersViewer"/>
+                    <div class="col-12 noPadding" style="position: relative;">
+                        <!-- Map View Selector -->
+                        <div class="map-view-selector">
+                            <button 
+                                :class="['view-btn', { active: mapView === '2d' }]"
+                                @click="setMapView('2d')"
+                                title="2D Map View">
+                                2D
+                            </button>
+                            <button 
+                                :class="['view-btn', { active: mapView === '3d' }]"
+                                @click="setMapView('3d')"
+                                title="3D Trajectory View">
+                                3D
+                            </button>
+                        </div>
+                        
+                        <!-- Map Viewers -->
+                        <OpenLayersViewer v-show="mapView === '2d'" ref="openLayersViewer"/>
+                        <ThreeJSViewer v-show="mapView === '3d'" ref="threeJSViewer"/>
                     </div>
                 </div>
             </main>
@@ -45,6 +63,8 @@
 import isOnline from 'is-online'
 import Plotly from '@/components/Plotly.vue'
 import OpenLayersViewer from '@/components/OpenLayersViewer.vue'
+// Lazy load ThreeJSViewer to avoid import errors if dependencies aren't installed
+const ThreeJSViewer = () => import('@/components/ThreeJSViewer.vue')
 import Sidebar from '@/components/Sidebar.vue'
 import TxInputs from '@/components/widgets/TxInputs.vue'
 import ParamViewer from '@/components/widgets/ParamViewer.vue'
@@ -70,6 +90,12 @@ export default {
         this.state.timeAttitudeQ = []
         this.state.currentTrajectory = []
         isOnline().then(a => { this.state.isOnline = a })
+        
+        // Restore preferred map view from localStorage
+        const savedMapView = localStorage.getItem('preferredMapView')
+        if (savedMapView && ['2d', '3d'].includes(savedMapView)) {
+            this.mapView = savedMapView
+        }
     },
     beforeDestroy () {
         this.$eventHub.$off('messages')
@@ -77,7 +103,8 @@ export default {
     data () {
         return {
             state: store,
-            dataExtractor: null
+            dataExtractor: null,
+            mapView: '2d' // Default to 2D view, options: '2d', '3d'
         }
     },
     methods: {
@@ -232,12 +259,19 @@ export default {
                     a: 1.0
                 })
             }
+        },
+        
+        setMapView (view) {
+            this.mapView = view
+            // Store preference in localStorage
+            localStorage.setItem('preferredMapView', view)
         }
     },
     components: {
         Sidebar,
         Plotly,
         OpenLayersViewer,
+        ThreeJSViewer,
         AtomSpinner,
         TxInputs,
         ParamViewer,
@@ -302,6 +336,58 @@ export default {
 
     i {
         margin: 10px;
+    }
+
+    .map-view-selector {
+        position: absolute;
+        top: 10px;
+        right: 10px;
+        z-index: 1000;
+        display: flex;
+        gap: 6px;
+        background: rgba(30, 33, 38, 0.95);
+        padding: 6px;
+        border-radius: 8px;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+        backdrop-filter: blur(10px);
+    }
+
+    .view-btn {
+        background: linear-gradient(145deg, #3a4556 0%, #2d3748 100%);
+        color: #e2e8f0;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 6px;
+        padding: 8px 16px;
+        cursor: pointer;
+        font-size: 13px;
+        font-weight: 600;
+        transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+        min-width: 60px;
+    }
+
+    .view-btn:hover {
+        background: linear-gradient(145deg, #4a5568 0%, #3d4758 100%);
+        border-color: rgba(255, 255, 255, 0.2);
+        transform: translateY(-1px);
+        box-shadow: 0 3px 8px rgba(0, 0, 0, 0.3);
+    }
+
+    .view-btn.active {
+        background: linear-gradient(145deg, #2196F3 0%, #1976D2 100%);
+        color: #ffffff;
+        border-color: rgba(33, 150, 243, 0.5);
+        box-shadow: 0 2px 8px rgba(33, 150, 243, 0.4), 0 0 0 1px rgba(255, 255, 255, 0.1) inset;
+    }
+
+    .view-btn.active:hover {
+        background: linear-gradient(145deg, #42A5F5 0%, #2196F3 100%);
+        box-shadow: 0 4px 12px rgba(33, 150, 243, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.15) inset;
+    }
+
+    .noPadding {
+        padding: 0 !important;
     }
 
     i .dropdown {
